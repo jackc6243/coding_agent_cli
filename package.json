@@ -1,0 +1,40 @@
+{
+  "name": "coding-agent-cli",
+  "version": "0.1.0",
+  "description": "A TypeScript coding agent CLI using OpenRouter",
+  "type": "module",
+  "bin": {
+    "agent": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "chmod +x dist/cli.js",
+    "dev": "node --loader ts-node/esm src/cli.ts",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write .",
+    "start": "node dist/cli.js",
+    "demo": "npm run build && npm start --"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.2",
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "diff": "^5.2.0",
+    "dotenv": "^16.4.5",
+    "execa": "^9.3.0",
+    "fast-glob": "^3.3.2",
+    "simple-git": "^3.25.0",
+    "undici": "^6.19.8",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.10",
+    "eslint": "^9.8.0",
+    "prettier": "^3.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

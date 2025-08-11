@@ -9,6 +9,9 @@
   "engines": {
     "node": ">=20"
   },
+  "workspaces": [
+    "src/mcp/servers/*"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "postbuild": "chmod +x dist/cli.js",
@@ -16,9 +19,15 @@
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
     "start": "node dist/cli.js",
-    "demo": "npm run build && npm start --"
+    "build:servers": "npm run -ws --if-present build",
+    "build:all": "npm run build && npm run build:servers",
+    "server:weather:build": "npm run -w @mcp-server/weather build",
+    "client:weather:dev": "npm run -w @mcp-server/weather build && node --loader ts-node/esm src/mcp/clients/weather/index.ts src/mcp/servers/weather/build/index.js",
+    "client:weather:start": "npm run -w @mcp-server/weather build && npm run build && node dist/mcp/clients/weather/index.js src/mcp/servers/weather/build/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.59.0",
+    "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.17.2",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
@@ -26,6 +35,7 @@
     "dotenv": "^16.4.5",
     "execa": "^9.3.0",
     "fast-glob": "^3.3.2",
+    "openai": "^5.12.2",
     "simple-git": "^3.25.0",
     "undici": "^6.19.8",
     "zod": "^3.25.76"

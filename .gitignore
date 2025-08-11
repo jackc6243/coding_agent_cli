@@ -3,3 +3,7 @@ dist
 .env
 *.log
 .DS_Store
+
+# MCP servers workspace artifacts
+src/mcp/servers/**/build
+src/mcp/servers/**/node_modules

@@ -22,4 +22,18 @@ export class ConsoleLogger implements LoggerInterface {
     }
   }
 
+  logObject(label: string, obj: any, level: LogLevel = this.logLevel) {
+    const ts = new Date().toISOString();
+    const objStr = JSON.stringify(obj, null, 2);
+    const redactedStr = redact(objStr);
+    const out = `[${ts}] ${level.toUpperCase()} ${label}:\n${redactedStr}`;
+    switch (level) {
+      case 'info': console.log(chalk.cyan(out)); break;
+      case 'warn': console.warn(chalk.yellow(out)); break;
+      case 'error': console.error(chalk.red(out)); break;
+      case 'debug': console.log(chalk.gray(out)); break;
+      case 'success': console.log(chalk.green(out)); break;
+    }
+  }
+
 }

@@ -4,7 +4,7 @@
   "description": "A TypeScript coding agent CLI using OpenRouter",
   "type": "module",
   "bin": {
-    "agent": "dist/cli.js"
+    "agent": "dist/main.js"
   },
   "engines": {
     "node": ">=20"
@@ -14,11 +14,11 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "postbuild": "chmod +x dist/cli.js",
-    "dev": "node --loader ts-node/esm src/cli.ts",
+    "postbuild": "chmod +x dist/main.js",
+    "dev": "node --loader ts-node/esm src/main.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
-    "start": "node dist/cli.js",
+    "start": "node dist/main.js",
     "build:servers": "npm run -ws --if-present build",
     "build:all": "npm run build && npm run build:servers",
     "server:weather:build": "npm run -w @mcp-server/weather build",
@@ -29,6 +29,7 @@
     "@anthropic-ai/sdk": "^0.59.0",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.17.2",
+    "ajv": "^8.17.1",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "diff": "^5.2.0",
@@ -38,13 +39,16 @@
     "openai": "^5.12.2",
     "simple-git": "^3.25.0",
     "undici": "^6.19.8",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.33.0",
     "@types/node": "^20.19.10",
     "eslint": "^9.8.0",
     "prettier": "^3.3.3",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1"
   }
 }

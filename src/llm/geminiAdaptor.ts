@@ -1,7 +1,8 @@
 import { Context } from "../context/context.js";
 import { LLMAdaptorInterface } from "./types.js";
-import { ChatMessage, ToolCall, ToolResult } from "../types.js";
-import { GoogleGenerativeAI, Content, Part, SchemaType } from '@google/generative-ai';
+import { ChatMessage } from "../types.js";
+import { GoogleGenerativeAI, Content, Part, SchemaType, Schema } from '@google/generative-ai';
+import { ToolCall } from "../tools/types.js";
 
 export class GeminiAdaptor implements LLMAdaptorInterface {
     model: string;
@@ -15,7 +16,6 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
     private convertMessagesToGeminiFormat(context: Context): Content[] {
         const contents: Content[] = [];
 
-        // Convert message history
         for (const msg of context.messageHistory) {
             // Skip system messages as they're handled differently in Gemini
             if (msg.role === 'system') continue;
@@ -32,7 +32,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
                 for (const toolCall of msg.toolCalls!) {
                     parts.push({
                         functionCall: {
-                            name: toolCall.name,
+                            name: toolCall.getToolIdentifier(),
                             args: toolCall.args || {},
                         }
                     });
@@ -41,7 +41,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
                     if (toolCall.result) {
                         parts.push({
                             functionResponse: {
-                                name: toolCall.name,
+                                name: toolCall.getToolIdentifier(),
                                 response: {
                                     content: toolCall.result.content,
                                     error: toolCall.result.isError || false,
@@ -64,13 +64,21 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
     }
 
     private convertToolsToGeminiFormat(context: Context) {
-        if (context.tools.length === 0) return undefined;
+        if (context.getToolSize() === 0) return undefined;
 
-        return context.tools.map(tool => ({
-            name: tool.name,
-            description: tool.description || '',
-            parameters: tool.inputSchema as any, // Type assertion to bypass strict typing
-        }));
+        const tools = [];
+        for (const { identifier, tool } of context.getAllTools()) {
+            tools.push({
+                name: identifier,
+                description: tool.description || '',
+                parameters: {
+                    type: SchemaType.OBJECT,
+                    properties: tool.inputSchema.properties as Record<string, Schema> || {},
+                    required: tool.inputSchema.required || [],
+                },
+            });
+        }
+        return tools;
     }
 
     async sendMessage(context: Context): Promise<ChatMessage | undefined> {
@@ -89,16 +97,17 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
             });
 
             const response = result.response;
-
-            // Handle text response
             const text = response.text();
 
-            // Handle function calls
             const functionCalls = response.functionCalls();
-            let toolCalls: ToolCall[] = functionCalls ? functionCalls.map(functionCall => ({
-                name: functionCall.name,
-                args: functionCall.args as Record<string, any>,
-            })) : [];
+            const toolCalls: ToolCall[] = functionCalls ? functionCalls.map(functionCall => {
+                const { clientName, toolName } = ToolCall.splitIdentifer(functionCall.name);
+                return new ToolCall({
+                    toolName: toolName,
+                    clientName: clientName,
+                    args: functionCall.args as Record<string, unknown>,
+                });
+            }) : [];
 
             return new ChatMessage('assistant', text, toolCalls);
 

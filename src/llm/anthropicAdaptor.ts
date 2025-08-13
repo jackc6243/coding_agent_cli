@@ -1,8 +1,8 @@
 import { Context } from "../context/context.js";
 import { LLMAdaptorInterface } from "./types.js";
-import { ChatMessage, ToolCall, ToolResult } from "../types.js";
+import { ChatMessage } from "../types.js";
 import { Anthropic } from '@anthropic-ai/sdk';
-
+import { ToolCall } from "../tools/types.js";
 export class AnthropicAdaptor implements LLMAdaptorInterface {
     model: string;
     private client: Anthropic;
@@ -30,24 +30,29 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
                     });
                 }
 
-                // Add tool use content and tool results
+                // Handle tool calls based on message role
                 if (msg.hasToolCalls()) {
-                    for (const toolCall of msg.toolCalls!) {
-                        content.push({
-                            type: 'tool_use',
-                            id: toolCall.id || '',
-                            name: toolCall.name,
-                            input: toolCall.args || {},
-                        });
-
-                        // Add tool result if present
-                        if (toolCall.result) {
+                    if (msg.role === 'assistant') {
+                        // For assistant messages, add tool_use blocks
+                        for (const toolCall of msg.toolCalls!) {
                             content.push({
-                                type: 'tool_result',
-                                tool_use_id: toolCall.id || '',
-                                content: toolCall.result.content,
-                                is_error: toolCall.result.isError || false,
+                                type: 'tool_use',
+                                id: toolCall.id || '',
+                                name: toolCall.getToolIdentifier(),
+                                input: toolCall.args || {},
                             });
+                        }
+                    } else if (msg.role === 'user') {
+                        // For user messages, add tool_result blocks if they exist
+                        for (const toolCall of msg.toolCalls!) {
+                            if (toolCall.result) {
+                                content.push({
+                                    type: 'tool_result',
+                                    tool_use_id: toolCall.id || '',
+                                    content: typeof toolCall.result.content === 'string' ? toolCall.result.content : JSON.stringify(toolCall.result.content),
+                                    is_error: toolCall.result.isError || false,
+                                });
+                            }
                         }
                     }
                 }
@@ -58,6 +63,28 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
                         content: content,
                     });
                 }
+                
+                // For assistant messages with completed tool calls, create a separate user message with tool results
+                if (msg.role === 'assistant' && msg.hasToolCalls()) {
+                    const toolResults: Anthropic.ContentBlockParam[] = [];
+                    for (const toolCall of msg.toolCalls!) {
+                        if (toolCall.result) {
+                            toolResults.push({
+                                type: 'tool_result',
+                                tool_use_id: toolCall.id || '',
+                                content: typeof toolCall.result.content === 'string' ? toolCall.result.content : JSON.stringify(toolCall.result.content),
+                                is_error: toolCall.result.isError || false,
+                            });
+                        }
+                    }
+                    
+                    if (toolResults.length > 0) {
+                        messages.push({
+                            role: 'user',
+                            content: toolResults,
+                        });
+                    }
+                }
             }
         }
 
@@ -65,22 +92,26 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
     }
 
     private convertToolsToAnthropicFormat(context: Context): Anthropic.Tool[] {
-        return context.tools.map(tool => ({
-            name: tool.name,
-            description: tool.description || '',
-            input_schema: {
-                ...tool.inputSchema,
-                type: "object",
-                properties: tool.inputSchema.properties || {},
-                required: tool.inputSchema.required || [],
-            },
-        }));
+        const tools: Anthropic.Tool[] = [];
+        for (const { identifier, tool } of context.getAllTools()) {
+            tools.push({
+                name: identifier,
+                description: tool.description || '',
+                input_schema: {
+                    ...tool.inputSchema,
+                    type: "object",
+                    properties: tool.inputSchema.properties || {},
+                    required: tool.inputSchema.required || [],
+                },
+            });
+        }
+        return tools;
     }
 
     async sendMessage(context: Context): Promise<ChatMessage | undefined> {
         try {
             const messages = this.convertMessagesToAnthropicFormat(context);
-            const tools = context.tools.length > 0 ? this.convertToolsToAnthropicFormat(context) : undefined;
+            const tools = context.getToolSize() > 0 ? this.convertToolsToAnthropicFormat(context) : undefined;
 
             const response = await this.client.messages.create({
                 model: this.model,
@@ -98,11 +129,13 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
                 if (content.type === 'text') {
                     textContent += content.text;
                 } else if (content.type === 'tool_use') {
-                    toolCalls.push({
+                    const { clientName, toolName } = ToolCall.splitIdentifer(content.name);
+                    toolCalls.push(new ToolCall({
                         id: content.id,
-                        name: content.name,
-                        args: content.input as Record<string, any>,
-                    });
+                        toolName: toolName,
+                        clientName: clientName,
+                        args: content.input as Record<string, unknown>,
+                    }));
                 }
             }
 

@@ -1,57 +1,15 @@
-import { z } from "zod";
+import { ToolCall } from "./tools/types.js";
 
 export type Role = 'system' | 'user' | 'assistant';
 
-// Base interface for tool calls with embedded results
-export interface ToolCall<TResult = any> {
-  id?: string;
-  name: string;
-  args?: Record<string, any>;
-  result?: ToolResult<TResult>;
-}
-
-// Tool result interface with generic return type
-export interface ToolResult<TResult = any> {
-  content: TResult;
-  isError?: boolean;
-  executedAt?: Date;
-}
-
-// Registry for tool schemas and their expected return types
-export interface ToolSchema {
-  name: string;
-  inputSchema: z.ZodSchema;
-  resultSchema?: z.ZodSchema;
-}
-
-// Factory interface for creating typed tool calls
-export interface ToolCallFactory {
-  createToolCall<TResult = any>(
-    name: string,
-    args?: Record<string, any>,
-    id?: string
-  ): ToolCall<TResult>;
-
-  executeToolCall<TResult = any>(
-    toolCall: ToolCall<TResult>,
-    executor: (name: string, args: Record<string, any>) => Promise<any>
-  ): void;
-
-  validateOutputSchema<TResult = any>(toolName: string, result: any): TResult;
-  validateInputSchema(toolName: string, args: Record<string, any>): Record<string, any>;
-  registerToolSchema(toolName: string, inputSchema: z.ZodSchema, resultSchema?: z.ZodSchema): void;
-  getExpectedResultType(toolName: string): any;
-  getExpectedInputType(toolName: string): any;
-}
-
 export class ChatMessage {
   role: Role;
-  content?: string;
+  content: string;
   toolCalls: ToolCall[];
 
   constructor(
     role: Role,
-    content?: string,
+    content: string = "",
     toolCalls: ToolCall[] = []
   ) {
     this.role = role;

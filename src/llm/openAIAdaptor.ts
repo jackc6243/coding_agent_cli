@@ -1,7 +1,8 @@
 import { Context } from "../context/context.js";
 import { LLMAdaptorInterface } from "./types.js";
-import { ChatMessage, ToolCall } from "../types.js";
+import { ChatMessage } from "../types.js";
 import OpenAI from 'openai';
+import { ToolCall } from "../tools/types.js";
 
 export class OpenAIAdaptor implements LLMAdaptorInterface {
     model: string;
@@ -42,7 +43,7 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
                         id: toolCall.id || '',
                         type: 'function' as const,
                         function: {
-                            name: toolCall.name,
+                            name: toolCall.getToolIdentifier(),
                             arguments: JSON.stringify(toolCall.args || {}),
                         }
                     }))
@@ -73,10 +74,10 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
             const completion = await this.client.chat.completions.create({
                 model: this.model,
                 messages: messages,
-                tools: context.tools.length > 0 ? context.tools.map(tool => ({
+                tools: context.getToolSize() > 0 ? Array.from(context.getAllTools()).map(({ identifier, tool }) => ({
                     type: 'function' as const,
                     function: {
-                        name: tool.name,
+                        name: identifier,
                         description: tool.description,
                         parameters: tool.inputSchema,
                     }
@@ -87,17 +88,20 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
                 const message = completion.choices[0].message;
                 const toolCalls: ToolCall[] = message.tool_calls ? message.tool_calls.map(toolCall => {
                     if (toolCall.type === 'function') {
-                        return {
+                        const { clientName, toolName } = ToolCall.splitIdentifer(toolCall.function.name);
+                        return new ToolCall({
                             id: toolCall.id,
-                            name: toolCall.function.name,
+                            toolName: toolName || 'unknown',
+                            clientName: clientName || 'unknown',
                             args: JSON.parse(toolCall.function.arguments || '{}'),
-                        };
+                        });
                     }
-                    return {
+                    return new ToolCall({
                         id: toolCall.id,
-                        name: 'unknown',
+                        toolName: 'unknown',
+                        clientName: 'unknown',
                         args: {},
-                    };
+                    });
                 }) : [];
                 return new ChatMessage('assistant', message.content ?? "", toolCalls);
             }

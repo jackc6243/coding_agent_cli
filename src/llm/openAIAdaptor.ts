@@ -3,6 +3,9 @@ import { LLMAdaptorInterface } from "./types.js";
 import { ChatMessage } from "../types.js";
 import OpenAI from 'openai';
 import { ToolCall } from "../tools/types.js";
+import { ConsoleLogger } from "../logging/ConsoleLogger.js";
+
+const logger = new ConsoleLogger('info');
 
 export class OpenAIAdaptor implements LLMAdaptorInterface {
     model: string;
@@ -108,7 +111,7 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
 
             return undefined;
         } catch (error) {
-            console.error('OpenAI API error:', error);
+            logger.logObject('OpenAI API error', error, 'error');
             return undefined;
         }
     }

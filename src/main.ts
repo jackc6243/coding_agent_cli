@@ -2,10 +2,13 @@ import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { LLM } from './llm/llm.js';
 import { ChatMessage } from './types.js';
+import { ConsoleLogger } from './logging/ConsoleLogger.js';
 
 import dotenv from 'dotenv';
 import { getDefaultAllContext } from './context/defaultAllContext.js';
 dotenv.config();
+
+const logger = new ConsoleLogger('info');
 
 async function finishToolCalls(llm: LLM) {
     let msg = llm.getLastMessage();
@@ -24,7 +27,7 @@ async function chat() {
     // const llm = new LLM("anthropic", "claude-sonnet-4-20250514", systemPrompt, ctx);
     const llm = new LLM("openAI", "gpt-5", systemPrompt, ctx);
     try {
-        console.log('Chat started. Type "exit" or press Ctrl+D to quit.');
+        logger.log('Chat started. Type "exit" or press Ctrl+D to quit.');
         while (true) {
             const line = await rl.question('> ');
             const text = line.trim();
@@ -35,9 +38,9 @@ async function chat() {
             await finishToolCalls(llm);
 
             const reply = llm.getLastMessage();
-            console.log("context:\n", llm.context);
+            logger.logObject("context", llm.context, 'debug');
             if (reply) {
-                console.log(reply.content);
+                logger.log(reply.content);
             }
         }
     } catch {
@@ -49,6 +52,6 @@ async function chat() {
 }
 
 chat().catch((e) => {
-    console.error(e);
+    logger.log(String(e), 'error');
     process.exit(1);
 });

@@ -14,6 +14,8 @@ export abstract class BaseToolClient implements ToolClient {
         this.tools = new Map();
     }
 
+    abstract populateToolCallResult(toolCall: ToolCall): Promise<void>;
+
     getToolList(): Tool[] {
         const l: Tool[] = [];
         for (const [, v] of this.tools) {
@@ -27,8 +29,6 @@ export abstract class BaseToolClient implements ToolClient {
     }
 
     cleanUp(): void { }
-
-    abstract populateToolCallResult(toolCall: ToolCall): Promise<void>;
 
     validateInputSchema(toolCall: ToolCall): void {
         const tool = this.tools.get(toolCall.toolName);

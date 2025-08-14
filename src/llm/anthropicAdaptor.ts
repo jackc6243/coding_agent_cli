@@ -3,6 +3,9 @@ import { LLMAdaptorInterface } from "./types.js";
 import { ChatMessage } from "../types.js";
 import { Anthropic } from '@anthropic-ai/sdk';
 import { ToolCall } from "../tools/types.js";
+import { ConsoleLogger } from "../logging/ConsoleLogger.js";
+
+const logger = new ConsoleLogger('info');
 export class AnthropicAdaptor implements LLMAdaptorInterface {
     model: string;
     private client: Anthropic;
@@ -142,7 +145,7 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
 
             return new ChatMessage('assistant', textContent, toolCalls);
         } catch (error) {
-            console.error('Anthropic API error:', error);
+            logger.logObject('Anthropic API error', error, 'error');
             return undefined;
         }
     }

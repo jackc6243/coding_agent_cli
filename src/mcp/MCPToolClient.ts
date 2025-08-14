@@ -24,14 +24,14 @@ export class MCPToolClient extends BaseToolClient {
                 this.logger.logObject(`Registering tool: ${tool.name}`, tool);
                 this.registerTool(tool);
             });
-            console.log("Connected to server with tools:");
+            this.logger.log("Connected to server with tools:", 'success');
 
             for (const [toolName, tool] of this.tools) {
-                console.log(`Tool Name: [${toolName}], description: [${tool.description}]`);
+                this.logger.log(`Tool Name: [${toolName}], description: [${tool.description}]`, 'info');
             }
 
         } catch (e) {
-            console.log("Failed to connect to MCP server: ", e);
+            this.logger.log(`Failed to connect to MCP server: ${e}`, 'error');
             throw e;
         }
     }

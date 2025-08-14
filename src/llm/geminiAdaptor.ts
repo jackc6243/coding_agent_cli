@@ -3,6 +3,9 @@ import { LLMAdaptorInterface } from "./types.js";
 import { ChatMessage } from "../types.js";
 import { GoogleGenerativeAI, Content, Part, SchemaType, Schema } from '@google/generative-ai';
 import { ToolCall } from "../tools/types.js";
+import { ConsoleLogger } from "../logging/ConsoleLogger.js";
+
+const logger = new ConsoleLogger('info');
 
 export class GeminiAdaptor implements LLMAdaptorInterface {
     model: string;
@@ -112,7 +115,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
             return new ChatMessage('assistant', text, toolCalls);
 
         } catch (error) {
-            console.error('Gemini API error:', error);
+            logger.logObject('Gemini API error', error, 'error');
         }
     }
 }

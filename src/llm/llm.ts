@@ -4,6 +4,9 @@ import { GeminiAdaptor } from "./geminiAdaptor.js";
 import { OpenAIAdaptor } from "./openAIAdaptor.js";
 import { LLMAdaptorInterface, LLMProvider } from "./types.js";
 import { ChatMessage } from '../types.js';
+import { ConsoleLogger } from '../logging/ConsoleLogger.js';
+
+const logger = new ConsoleLogger('info');
 
 export class LLM {
     llmAdaptor: LLMAdaptorInterface;
@@ -47,7 +50,7 @@ export class LLM {
     async callTools(): Promise<void> {
         const msg = this.getLastMessage();
         if (!msg) {
-            console.warn('No messages in history to process tool calls');
+            logger.log('No messages in history to process tool calls', 'warn');
             return;
         }
 
@@ -62,13 +65,13 @@ export class LLM {
             if (client) {
                 promises.push(client.populateToolCallResult(call));
             } else {
-                console.error(`Tool client '${call.clientName}' not found for tool call '${call.toolName}'`);
+                logger.log(`Tool client '${call.clientName}' not found for tool call '${call.toolName}'`, 'error');
             }
         }
         const results = await Promise.allSettled(promises);
         for (const r of results) {
             if (r.status === 'rejected') {
-                console.error('Tool call failed:', r.reason);
+                logger.log(`Tool call failed: ${r.reason}`, 'error');
             }
         }
     }

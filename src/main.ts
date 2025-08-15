@@ -26,8 +26,8 @@ async function chat() {
     const systemPrompt = SYSTEM_PROMPTS.BASE_BEHAVIOURAL_SYSTEM_PROMPT;
     const ctx = getDefaultAllContext();
     // const llm = new LLM("gemini", "gemini-2.5-flash", systemPrompt, ctx);
-    // const llm = new LLM("anthropic", "claude-sonnet-4-20250514", systemPrompt, ctx);
-    const llm = new LLM("openAI", "gpt-5", systemPrompt, ctx);
+    const llm = new LLM("anthropic", "claude-sonnet-4-20250514", systemPrompt, ctx);
+    // const llm = new LLM("openAI", "gpt-5", systemPrompt, ctx);
     try {
         logger.log('Chat started. Type "exit" or press Ctrl+D to quit.', 'info');
         while (true) {

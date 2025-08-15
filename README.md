@@ -1,14 +1,14 @@
 # coding-agent-cli
 
-A comprehensive TypeScript-based AI coding agent CLI that supports multiple LLM providers, RAG-powered code context retrieval, MCP (Model Context Protocol) servers, and various development tools.
+A comprehensive TypeScript-based AI coding agent CLI that supports multiple LLM providers, RAG-powered code context retrieval, MCP (Model Context Protocol) servers, terminal tools, and various development utilities.
 
 ## Features
 
 - **Multiple LLM Providers**: Support for OpenAI, Anthropic Claude, and Google Gemini
 - **RAG System**: Advanced retrieval-augmented generation with semantic code chunking and vector storage
 - **MCP Server Support**: Model Context Protocol integration with workspace-based server management
-- **Terminal Tools**: Built-in terminal command execution capabilities
-- **Modular Architecture**: Clean separation of concerns with extensible design
+- **Terminal Tools**: Built-in terminal command execution and process management
+- **Context Management**: Advanced context handling with file watching and intelligent updates
 
 ## Requirements
 - Node.js 20+
@@ -145,12 +145,12 @@ npm run client:weather:start
 ```
 
 ### Creating New MCP Servers
-1. Create directory under `src/mcp/servers/your-server`
+1. Create directory under `src/mcp/serverPackages/your-server`
 2. Add `package.json` with MCP server configuration
 3. Implement server logic in `src/index.ts`
 4. Build with `npm run -w @mcp-server/your-server build`
 
-See the [weather server](src/mcp/servers/weather) as a reference implementation.
+See the [weather server](src/mcp/serverPackages/weather) as a reference implementation.
 
 ## Available Scripts
 
@@ -159,6 +159,12 @@ See the [weather server](src/mcp/servers/weather) as a reference implementation.
 npm run dev              # Start in development mode with ts-node
 npm run build           # Build the main CLI
 npm run build:all       # Build CLI and all MCP servers
+npm run start           # Run compiled version
+npm run start:new       # Clean, build all, and start fresh
+
+# Utilities
+npm run clear           # Clear dist and test_repo directories
+npm run start:chromadb  # Start ChromaDB server for RAG
 
 # Code Quality
 npm run lint            # Run ESLint
@@ -167,6 +173,8 @@ npm run format          # Format code with Prettier
 # MCP Servers
 npm run build:servers   # Build all MCP server workspaces
 npm run server:weather:build  # Build weather server specifically
+npm run client:weather:dev    # Run weather client in development mode
+npm run client:weather:start  # Run weather client in production mode
 ```
 
 ## Project Structure
@@ -178,15 +186,43 @@ src/
 │   ├── anthropicAdaptor.ts
 │   ├── geminiAdaptor.ts
 │   ├── openAIAdaptor.ts
-│   └── llm.ts
+│   ├── llm.ts
+│   └── types.ts
 ├── context/                # Context management system
+│   ├── context.ts
+│   ├── contextManager.ts
+│   ├── defaultAllContext.ts
+│   └── test files
 ├── rag/                    # RAG system (see rag/README.md)
+│   ├── ast/               # AST parsing and indexing
+│   ├── chunking/          # Text and semantic chunking
+│   ├── core/              # Core RAG functionality
+│   ├── services/          # Vector store, embeddings, file browser
+│   └── __tests__/         # Comprehensive test suite
 ├── mcp/                    # MCP servers and clients
 │   ├── MCPToolClient.ts
-│   └── servers/           # Independent MCP server workspaces
-├── tools/                  # Built-in tools (terminal, etc.)
+│   ├── clients/           # MCP client implementations
+│   └── serverPackages/    # Independent MCP server workspaces
+│       └── weather/       # Weather server example
+├── tools/                  # Built-in tools
+│   ├── BaseToolClient.ts
+│   ├── terminal/          # Terminal command execution
+│   └── types.ts
 ├── core/                   # Core abstractions and types
-└── config/                 # Configuration management
+│   ├── BaseNode.ts
+│   ├── SubNode.ts
+│   └── types.ts
+├── config/                 # Configuration management
+│   ├── AppConfig.ts
+│   ├── Constants.ts
+│   ├── FilePatterns.ts
+│   ├── MCPConfig.ts
+│   └── SystemPrompts.ts
+├── logging/                # Logging system
+│   ├── ConsoleLogger.ts
+│   └── Logger.ts
+├── prompts/                # System prompts and behavior
+└── utils/                  # Utility functions
 ```
 
 ## Contributing

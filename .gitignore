@@ -10,3 +10,4 @@ src/mcp/servers/**/node_modules
 
 chroma*
 .claude*
+/test_repo/*

@@ -36,6 +36,7 @@ export interface ToolClient {
     tools: Map<string, Tool>;
     getToolList(): Tool[];
     populateToolCallResult(toolCall: ToolCall): Promise<void>;
+    executeToolCall(toolCall: ToolCall): Promise<void>;
     registerTool(tool: Tool): void;
     cleanUp(): void;
 }

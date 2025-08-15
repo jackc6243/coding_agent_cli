@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-const NWS_API_BASE = "https://api.weather.gov";
+import { SERVICE_CONFIG } from './constants.js';
+const NWS_API_BASE = SERVICE_CONFIG.NWS_API_BASE;
 const USER_AGENT = "weather-app/1.0";
 // Helper function for making NWS API requests
 async function makeNWSRequest(url) {

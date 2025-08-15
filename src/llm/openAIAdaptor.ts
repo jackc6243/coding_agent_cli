@@ -22,10 +22,11 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
         const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
         // Add system message if present
-        if (context.systemInstructions) {
+        const systemInstructions = context.getSystemInstructionsWithContext();
+        if (systemInstructions) {
             messages.push({
                 role: 'system',
-                content: context.systemInstructions,
+                content: systemInstructions,
             });
         }
 

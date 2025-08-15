@@ -90,7 +90,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
             const model = this.client.getGenerativeModel({
                 model: this.model,
                 tools: tools ? [{ functionDeclarations: tools }] : undefined,
-                systemInstruction: context.systemInstructions || undefined,
+                systemInstruction: context.getSystemInstructionsWithContext() || undefined,
             });
 
             const contents = this.convertMessagesToGeminiFormat(context);

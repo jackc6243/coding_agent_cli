@@ -18,6 +18,9 @@
     "src"
   ],
   "exclude": [
-    "src/mcp/serverPackages/**"
+    "src/mcp/serverPackages/**",
+    "src/**/__tests__/**",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
   ]
 }

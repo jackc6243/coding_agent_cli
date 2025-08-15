@@ -21,9 +21,9 @@ export class ConsoleLogger implements LoggerInterface {
     return LOG_LEVELS[level] >= LOG_LEVELS[this.logLevel];
   }
 
-  log(msg: string, level: LogLevel = this.logLevel) {
+  log(msg: string, level: LogLevel) {
     if (!this.shouldLog(level)) return;
-    
+
     const ts = new Date().toISOString();
     msg = redact(msg);
     const out = `[${ts}] ${level.toUpperCase()} ${msg}`;
@@ -36,9 +36,9 @@ export class ConsoleLogger implements LoggerInterface {
     }
   }
 
-  logObject(label: string, obj: any, level: LogLevel = this.logLevel) {
+  logObject(label: string, obj: any, level: LogLevel) {
     if (!this.shouldLog(level)) return;
-    
+
     const ts = new Date().toISOString();
     const objStr = JSON.stringify(obj, null, 2);
     const redactedStr = redact(objStr);

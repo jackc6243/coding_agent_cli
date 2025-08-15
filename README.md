@@ -1,135 +1,210 @@
 # coding-agent-cli
 
-A TypeScript coding agent CLI using OpenRouter. Supports filesystem edits, regex search/replace, shell exec, git, and HTTP fetch tools.
+A comprehensive TypeScript-based AI coding agent CLI that supports multiple LLM providers, RAG-powered code context retrieval, MCP (Model Context Protocol) servers, and various development tools.
+
+## Features
+
+- **Multiple LLM Providers**: Support for OpenAI, Anthropic Claude, and Google Gemini
+- **RAG System**: Advanced retrieval-augmented generation with semantic code chunking and vector storage
+- **MCP Server Support**: Model Context Protocol integration with workspace-based server management
+- **Terminal Tools**: Built-in terminal command execution capabilities
+- **Modular Architecture**: Clean separation of concerns with extensible design
 
 ## Requirements
 - Node.js 20+
-- An OpenRouter API key
+- API keys for your chosen LLM provider(s):
+  - OpenAI API key (for OpenAI models and embeddings)
+  - Anthropic API key (for Claude models)
+  - Google API key (for Gemini models)
+- ChromaDB (for RAG functionality)
 
 ## Setup
-1. Copy .env.example to .env and set OPENROUTER_API_KEY
-2. Install dependencies:
-   npm install
-3. Build:
-   npm run build
-4. Link the CLI (optional for global command):
-   npm link
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Environment Configuration
+Create a `.env` file in the project root with your API keys:
+```bash
+# Required: Choose your LLM provider
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+GOOGLE_API_KEY=your-google-api-key
+```
+
+### 3. RAG Setup (Optional)
+For enhanced code context retrieval:
+
+Install ChromaDB:
+```bash
+pip install chromadb
+```
+
+Start ChromaDB server:
+```bash
+chroma run --host localhost --port 8000
+```
+
+### 4. Build the Project
+```bash
+npm run build
+```
+
+### 5. Link CLI (Optional)
+For global command access:
+```bash
+npm link
+```
 
 ## Usage
-- Show help:
-  agent --help
-- Run an agent goal in current directory:
-  agent run "create a README.md with project overview"
-- Options:
-  --model <slug>            Override default model (default: openrouter/anthropic/claude-3.7-sonnet)
-  --max-steps <n>          Step budget (default: 15)
-  --cwd <path>             Working directory (default: current)
-  --dry-run                 Do not execute tools; simulate
-  --verbose                 Verbose logs
-  --temperature <t>        Sampling temperature
 
-## Environment variables
-- OPENROUTER_API_KEY (required)
-- OPENROUTER_BASE_URL (default: https://openrouter.ai/api)
-- OPENROUTER_REFERER (optional)
-- OPENROUTER_TITLE (optional)
+### Interactive Chat Mode
+```bash
+npm run dev
+```
 
-## MCP servers as independent workspaces
+### CLI Commands
+```bash
+# Show help
+agent --help
 
-This project now builds each MCP server as its own independent NodeNext ESM workspace producing a standalone JS entry file per server, separate from the outer AI CLI.
+# Run with specific model
+node dist/main.js
+```
 
-- Root workspaces: see [package.json](package.json)
-- Weather server workspace: [src/mcp/servers/weather](src/mcp/servers/weather)
-  - Build output: [build/index.js](src/mcp/servers/weather/build/index.js)
-  - Server entry source: [src/index.ts](src/mcp/servers/weather/src/index.ts)
+### Model Configuration
+The main entry point supports multiple LLM providers. Edit `src/main.ts` to configure:
 
-### Install
+```typescript
+// OpenAI (GPT models)
+const llm = new LLM("openAI", "gpt-4", systemPrompt, ctx);
 
-- First-time install with npm workspaces (per-server isolated installs)
-  - Uses workspace settings in [.npmrc](.npmrc)
-  - Command:  
-    npm install
+// Anthropic Claude
+const llm = new LLM("anthropic", "claude-sonnet-4-20250514", systemPrompt, ctx);
 
-### Build
+// Google Gemini
+const llm = new LLM("gemini", "gemini-2.5-flash", systemPrompt, ctx);
+```
 
-- Build only the root CLI:
-  - npm run build
-- Build all servers (workspaces):
-  - npm run build:servers
-- Build everything (root + servers):
-  - npm run build:all
-- Build the weather server only:
-  - npm run -w @mcp-server/weather build
+## RAG (Retrieval-Augmented Generation) System
 
-### Run the weather client against the built weather server
+The project includes a comprehensive RAG system for intelligent code context retrieval:
 
-- Dev (ts-node for client, compiled server):
-  - npm run client:weather:dev
-- Start (compiled client + compiled server):
-  - npm run client:weather:start
+### Features
+- **Smart File Browsing**: Automatically scans and indexes your codebase
+- **AST-Aware Chunking**: Uses TypeScript compiler API for intelligent code parsing
+- **Vector Storage**: ChromaDB integration for fast similarity search
+- **Multiple File Types**: Support for TypeScript, JavaScript, Python, Java, and more
 
-These scripts resolve to:
-- client dev: node --loader ts-node/esm [index.ts](src/mcp/clients/weather/index.ts) [build/index.js](src/mcp/servers/weather/build/index.js)
-- client start: node [index.js](dist/mcp/clients/weather/index.js) [build/index.js](src/mcp/servers/weather/build/index.js)
+### RAG Usage
+```bash
+# Initialize and index your codebase
+npm run build
+node dist/rag/cli.js index
 
-The weather client dynamically launches the server via stdio and requires an API key for the LLM:
-- Set required env in [.env](.env.example)
+# Search for relevant code context
+node dist/rag/cli.js search "authentication logic"
 
-### Creating a new MCP server workspace
+# Get system statistics
+node dist/rag/cli.js stats
+```
 
-1) Create a new directory under servers, e.g. src/mcp/servers/my-server  
-   Include:
-   - package.json (example)
-     {
-       "name": "@mcp-server/my-server",
-       "version": "1.0.0",
-       "description": "My MCP server",
-       "type": "module",
-       "private": true,
-       "main": "build/index.js",
-       "files": ["build"],
-       "scripts": {
-         "build": "tsc -p tsconfig.json",
-         "start": "node build/index.js"
-       },
-       "dependencies": {
-         "@modelcontextprotocol/sdk": "^1.17.2",
-         "zod": "^3.25.76"
-       },
-       "devDependencies": {
-         "@types/node": "^20.0.0",
-         "typescript": "^5.9.2"
-       }
-     }
-   - tsconfig.json (NodeNext ESM)
-     {
-       "compilerOptions": {
-         "target": "ES2022",
-         "module": "NodeNext",
-         "moduleResolution": "NodeNext",
-         "outDir": "./build",
-         "rootDir": "./src",
-         "strict": true,
-         "esModuleInterop": true,
-         "skipLibCheck": true,
-         "forceConsistentCasingInFileNames": true
-       },
-       "include": ["src/**/*"],
-       "exclude": ["node_modules"]
-     }
-   - src/index.ts that starts an MCP server over stdio (similar to [weather server entry](src/mcp/servers/weather/src/index.ts))
+For detailed RAG documentation, see [src/rag/README.md](src/rag/README.md).
 
-2) Ensure root workspaces covers your new server (already configured to src/mcp/servers/* in [package.json](package.json)).
+## MCP (Model Context Protocol) Servers
 
-3) Install and build:
-   - npm install
-   - npm run -w @mcp-server/my-server build
+This project supports MCP servers as independent workspaces, allowing for modular tool integration:
 
-You’ll then have an isolated [build/index.js](src/mcp/servers/my-server/build/index.js) per server that can be launched via stdio by any client (including the CLI’s weather client that accepts a path to the server script).
+### Available MCP Servers
+- **Weather Server**: Example MCP server for weather-related queries
 
-### Notes
+### MCP Build Commands
+```bash
+# Build only the root CLI
+npm run build
 
-- Root TypeScript build excludes server workspaces so the servers compile independently:
-  - see [tsconfig.json](tsconfig.json)
-- Per-server node_modules and build artifacts are ignored in git:
-  - see [.gitignore](.gitignore)
+# Build all MCP servers
+npm run build:servers
+
+# Build everything (root + servers)
+npm run build:all
+
+# Build specific server
+npm run -w @mcp-server/weather build
+```
+
+### Running MCP Clients
+```bash
+# Development mode (ts-node for client, compiled server)
+npm run client:weather:dev
+
+# Production mode (compiled client + server)
+npm run client:weather:start
+```
+
+### Creating New MCP Servers
+1. Create directory under `src/mcp/servers/your-server`
+2. Add `package.json` with MCP server configuration
+3. Implement server logic in `src/index.ts`
+4. Build with `npm run -w @mcp-server/your-server build`
+
+See the [weather server](src/mcp/servers/weather) as a reference implementation.
+
+## Available Scripts
+
+```bash
+# Development
+npm run dev              # Start in development mode with ts-node
+npm run build           # Build the main CLI
+npm run build:all       # Build CLI and all MCP servers
+
+# Code Quality
+npm run lint            # Run ESLint
+npm run format          # Format code with Prettier
+
+# MCP Servers
+npm run build:servers   # Build all MCP server workspaces
+npm run server:weather:build  # Build weather server specifically
+```
+
+## Project Structure
+
+```
+src/
+├── main.ts                 # Main CLI entry point
+├── llm/                    # LLM provider adapters
+│   ├── anthropicAdaptor.ts
+│   ├── geminiAdaptor.ts
+│   ├── openAIAdaptor.ts
+│   └── llm.ts
+├── context/                # Context management system
+├── rag/                    # RAG system (see rag/README.md)
+├── mcp/                    # MCP servers and clients
+│   ├── MCPToolClient.ts
+│   └── servers/           # Independent MCP server workspaces
+├── tools/                  # Built-in tools (terminal, etc.)
+├── core/                   # Core abstractions and types
+└── config/                 # Configuration management
+```
+
+## Contributing
+
+1. Follow the existing code style and patterns
+2. Add tests for new functionality
+3. Update documentation as needed
+4. Ensure all builds pass: `npm run build:all`
+
+## Environment Variables
+
+```bash
+# LLM Provider API Keys (choose one or more)
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key  
+GOOGLE_API_KEY=your-google-api-key
+
+# Optional: Override default endpoints
+OPENAI_BASE_URL=https://api.openai.com/v1
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+```

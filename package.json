@@ -10,15 +10,18 @@
     "node": ">=20"
   },
   "workspaces": [
-    "src/mcp/servers/*"
+    "src/mcp/serverPackages/*"
   ],
   "scripts": {
+    "clear": "rm -rf ./dist && rm -rf ./test_repo && mkdir test_repo",
     "build": "tsc -p tsconfig.json",
     "postbuild": "chmod +x dist/main.js",
     "dev": "node --loader ts-node/esm src/main.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write .",
     "start": "node dist/main.js",
+    "start:chromadb": "chroma run --host localhost --port 8000",
+    "start:new": "npm run clear && npm run build:all && npm run start",
     "build:servers": "npm run -ws --if-present build",
     "build:all": "npm run build && npm run build:servers",
     "server:weather:build": "npm run -w @mcp-server/weather build",
@@ -27,10 +30,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.59.0",
+    "@chroma-core/default-embed": "^0.1.8",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.17.2",
+    "@types/chokidar": "^1.7.5",
     "ajv": "^8.17.1",
     "chalk": "^5.3.0",
+    "chokidar": "^4.0.3",
+    "chromadb": "^3.0.12",
     "commander": "^12.1.0",
     "diff": "^5.2.0",
     "dotenv": "^16.4.5",
@@ -39,6 +46,7 @@
     "openai": "^5.12.2",
     "simple-git": "^3.25.0",
     "undici": "^6.19.8",
+    "web-tree-sitter": "^0.25.8",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"
   },

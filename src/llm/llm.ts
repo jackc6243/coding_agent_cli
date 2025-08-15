@@ -5,6 +5,7 @@ import { OpenAIAdaptor } from "./openAIAdaptor.js";
 import { LLMAdaptorInterface, LLMProvider } from "./types.js";
 import { ChatMessage } from '../types.js';
 import { ConsoleLogger } from '../logging/ConsoleLogger.js';
+import { CODE_CONTEXT_KEYWORDS } from '../config/SystemPrompts.js';
 
 const logger = new ConsoleLogger('info');
 
@@ -38,6 +39,9 @@ export class LLM {
     }
 
     async sendMessage(): Promise<ChatMessage | undefined> {
+        // Automatically retrieve relevant code context based on the latest user message
+        await this.retrieveRelevantCodeContext();
+        
         let msg = await this.llmAdaptor.sendMessage(this.context);
         if (msg) {
             this.context.addChatMessage(msg);
@@ -45,6 +49,39 @@ export class LLM {
             msg = new ChatMessage("assistant", "LLM failed to receive a message");
         }
         return msg;
+    }
+
+    private async retrieveRelevantCodeContext(): Promise<void> {
+        const lastMessage = this.getLastMessage();
+        if (!lastMessage || lastMessage.role !== 'user' || !lastMessage.content) {
+            return;
+        }
+
+        try {
+            // Only retrieve code context if the message seems to be about code
+            const codeRelatedKeywords = [
+                'function', 'class', 'method', 'variable', 'implement', 'code', 'bug', 'error',
+                'debug', 'refactor', 'file', 'module', 'import', 'export', 'component',
+                'test', 'spec', 'interface', 'type', 'enum', 'const', 'let', 'var',
+                'async', 'await', 'promise', 'callback', 'event', 'handler', 'listener',
+                ...CODE_CONTEXT_KEYWORDS
+            ];
+            
+            const messageText = lastMessage.content.toLowerCase();
+            const isCodeRelated = codeRelatedKeywords.some(keyword => 
+                messageText.includes(keyword)
+            );
+
+            if (isCodeRelated) {
+                logger.log('Retrieving relevant code context...', 'debug');
+                await this.context.retrieveRelevantCode(lastMessage.content, {
+                    topK: 5,
+                    minScore: 0.15
+                });
+            }
+        } catch (error) {
+            logger.log(`Failed to retrieve code context: ${error}`, 'warn');
+        }
     }
 
     async callTools(): Promise<void> {
@@ -63,7 +100,7 @@ export class LLM {
         for (const call of toolCallsToExecute) {
             const client = this.context.toolClients.get(call.clientName);
             if (client) {
-                promises.push(client.populateToolCallResult(call));
+                promises.push(client.executeToolCall(call));
             } else {
                 logger.log(`Tool client '${call.clientName}' not found for tool call '${call.toolName}'`, 'error');
             }

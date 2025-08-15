@@ -2,7 +2,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { MCPToolClient } from "../MCPToolClient.js";
 
 export function getMCPWeatherClient(): MCPToolClient {
-    const serverScriptPath: string = "./dist/mcp/servers/weather/src/index.js";
+    const serverScriptPath: string = "./src/mcp/serverPackages/weather/build/index.js";
     const isJs = serverScriptPath.endsWith(".js");
     if (!isJs) {
         throw new Error("Server script must be a .js file");

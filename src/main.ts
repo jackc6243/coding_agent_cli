@@ -1,8 +1,10 @@
+#!/usr/bin/env node
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { LLM } from './llm/llm.js';
 import { ChatMessage } from './types.js';
 import { ConsoleLogger } from './logging/ConsoleLogger.js';
+import { SYSTEM_PROMPTS } from './config/SystemPrompts.js';
 
 import dotenv from 'dotenv';
 import { getDefaultAllContext } from './context/defaultAllContext.js';
@@ -21,13 +23,13 @@ async function finishToolCalls(llm: LLM) {
 
 async function chat() {
     const rl = readline.createInterface({ input, output });
-    const systemPrompt = "You are a helpful agent.";
-    // const llm = new LLM("gemini", "gemini-2.5-flash", systemPrompt);
+    const systemPrompt = SYSTEM_PROMPTS.BASE_BEHAVIOURAL_SYSTEM_PROMPT;
     const ctx = getDefaultAllContext();
+    // const llm = new LLM("gemini", "gemini-2.5-flash", systemPrompt, ctx);
     // const llm = new LLM("anthropic", "claude-sonnet-4-20250514", systemPrompt, ctx);
     const llm = new LLM("openAI", "gpt-5", systemPrompt, ctx);
     try {
-        logger.log('Chat started. Type "exit" or press Ctrl+D to quit.');
+        logger.log('Chat started. Type "exit" or press Ctrl+D to quit.', 'info');
         while (true) {
             const line = await rl.question('> ');
             const text = line.trim();
@@ -40,7 +42,7 @@ async function chat() {
             const reply = llm.getLastMessage();
             logger.logObject("context", llm.context, 'debug');
             if (reply) {
-                logger.log(reply.content);
+                logger.log(reply.content, 'info');
             }
         }
     } catch {

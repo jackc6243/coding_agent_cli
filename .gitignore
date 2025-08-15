@@ -7,3 +7,6 @@ dist
 # MCP servers workspace artifacts
 src/mcp/servers/**/build
 src/mcp/servers/**/node_modules
+
+chroma*
+.claude*

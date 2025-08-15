@@ -119,7 +119,7 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
             const response = await this.client.messages.create({
                 model: this.model,
                 max_tokens: 4096,
-                system: context.systemInstructions || undefined,
+                system: context.getSystemInstructionsWithContext() || undefined,
                 messages: messages,
                 tools: tools,
             });

@@ -2,6 +2,16 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { SERVICE_CONFIG } from './constants.js';
+// Simple logger for the weather server
+const logger = {
+  log: (message: string, level: string = "info") => {
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${level.toUpperCase()}: ${message}`);
+  },
+  error: (message: string) => logger.log(message, "error"),
+  warn: (message: string) => logger.log(message, "warn"),
+  info: (message: string) => logger.log(message, "info")
+};
 
 const NWS_API_BASE = SERVICE_CONFIG.NWS_API_BASE;
 const USER_AGENT = "weather-app/1.0";
@@ -20,7 +30,7 @@ async function makeNWSRequest<T>(url: string): Promise<T | null> {
         }
         return (await response.json()) as T;
     } catch (error) {
-        console.error("Error making NWS request:", error);
+        logger.error("Error making NWS request");
         return null;
     }
 }
@@ -223,10 +233,10 @@ server.tool(
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("Weather MCP Server running on stdio");
+    logger.info("Weather MCP Server running on stdio");
 }
 
 main().catch((error) => {
-    console.error("Fatal error in main():", error);
+    logger.error("Fatal error in main()");
     process.exit(1);
 });

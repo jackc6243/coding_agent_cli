@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { FilePermissions } from "../context/FilePermissions.js";
-import { Chunk, ChunkContent, ChunkStrategist } from "./types.js";
+import { ChunkContent, ChunkStrategist } from "./types.js";
+import { Chunk } from "./Chunk.js";
 
 export class FileChunkMemoryStore {
   // first key is path and second key is chunk hash

@@ -4,12 +4,13 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { getAppConfig } from "../config/AppConfig.js";
+import { ContextManager } from "../context/ContextManager.js";
 
 const execAsync = promisify(exec);
 
 export class TerminalToolClient extends BaseToolClient {
-  constructor() {
-    super("Terminal Commands");
+  constructor(contextManager: ContextManager) {
+    super("Terminal", contextManager);
     this.registerTools();
   }
 
@@ -182,8 +183,4 @@ export class TerminalToolClient extends BaseToolClient {
       workingDirectory: getAppConfig().workingDirectory,
     });
   }
-}
-
-export function getTerminalClient(): TerminalToolClient {
-  return new TerminalToolClient();
 }

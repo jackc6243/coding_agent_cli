@@ -2,7 +2,6 @@
 import { ChromaClient } from "chromadb";
 import type { Collection } from "chromadb";
 import { SERVICE_CONFIG } from "../../config/Constants.js";
-import { Chunk } from "../../chunking/types.js";
 import { Embedding } from "../embedding/type.js";
 import {
   IVectorStore,
@@ -10,12 +9,15 @@ import {
   VectorStoreStats,
   VectorQueryResult,
 } from "./IVectorStore.js";
+import { Chunk } from "../../chunking/Chunk.js";
+import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
 
 export class ChromaVectorStore implements IVectorStore {
   private readonly BATCH_SIZE = 100;
   private client: ChromaClient;
   private collection: Collection | null = null;
   private readonly config: VectorStoreConfig;
+  private logger = new ConsoleLogger("info");
 
   constructor(config?: Partial<VectorStoreConfig>) {
     this.config = {
@@ -39,9 +41,9 @@ export class ChromaVectorStore implements IVectorStore {
         this.collection = await this.client.getCollection({
           name: this.config.collectionName,
         });
-        console.log(
-          "Using existing ChromaDB collection:",
-          this.config.collectionName
+        this.logger.log(
+          `Using existing ChromaDB collection: ${this.config.collectionName}`,
+          "info"
         );
       } catch {
         // Collection doesn't exist, create it
@@ -51,16 +53,18 @@ export class ChromaVectorStore implements IVectorStore {
             description: this.config.collectionDescription || "",
             created_at: new Date().toISOString(),
           },
+          embeddingFunction: null,
         });
-        console.log(
-          "Created new ChromaDB collection:",
-          this.config.collectionName
+        this.logger.log(
+          `Created new ChromaDB collection: ${this.config.collectionName}`,
+          "info"
         );
       }
     } catch (error) {
-      console.error("Failed to initialize ChromaDB:", error);
-      console.log(
-        "Note: Make sure ChromaDB is running locally. You can start it with: chroma run --host localhost --port 8000"
+      this.logger.log("Failed to initialize ChromaDB:", "error");
+      this.logger.log(
+        "Note: Make sure ChromaDB is running locally. You can start it with: chroma run --host localhost --port 8000",
+        "info"
       );
       throw error;
     }
@@ -95,14 +99,15 @@ export class ChromaVectorStore implements IVectorStore {
         await this.collection.delete({
           ids: matchingIds,
         });
-        console.log(
-          `Erased ${matchingIds.length} vectors with filePath starting with "${root}"`
+        this.logger.log(
+          `Erased ${matchingIds.length} vectors with filePath starting with "${root}"`,
+          "info"
         );
       } else {
-        console.log(`No vectors found with filePath starting with "${root}"`);
+        this.logger.log(`No vectors found with filePath starting with "${root}"`, "info");
       }
     } catch (error) {
-      console.error(`Failed to erase vectors for root "${root}":`, error);
+      this.logger.log(`Failed to erase vectors for root "${root}"`, "error");
       throw error;
     }
   }
@@ -200,7 +205,7 @@ export class ChromaVectorStore implements IVectorStore {
     }
 
     if (embeddedChunks.length === 0) {
-      console.log("No chunks to store");
+      this.logger.log("No chunks to store", "info");
       return;
     }
 
@@ -209,7 +214,6 @@ export class ChromaVectorStore implements IVectorStore {
       const ids = embeddedChunks.map((chunk) => chunk.hash);
       const metadatas = embeddedChunks.map((chunk) => ({
         filePath: chunk.filePath,
-        type: chunk.type,
         lineStart: chunk.lineStart,
         lineEnd: chunk.lineEnd,
         hash: chunk.hash,
@@ -220,8 +224,9 @@ export class ChromaVectorStore implements IVectorStore {
       // Store in batches to avoid memory issues
       for (let i = 0; i < embeddedChunks.length; i += this.BATCH_SIZE) {
         const end = Math.min(i + this.BATCH_SIZE, embeddedChunks.length);
-        console.log(
-          `Storing batch ${Math.floor(i / this.BATCH_SIZE) + 1}/${Math.ceil(embeddedChunks.length / this.BATCH_SIZE)} (${end - i} chunks)`
+        this.logger.log(
+          `Storing batch ${Math.floor(i / this.BATCH_SIZE) + 1}/${Math.ceil(embeddedChunks.length / this.BATCH_SIZE)} (${end - i} chunks)`,
+          "info"
         );
         const embeddings = embeddedChunks.slice(i, end).map((chunk) => {
           if (!chunk.embedding) {
@@ -237,11 +242,12 @@ export class ChromaVectorStore implements IVectorStore {
         });
       }
 
-      console.log(
-        `Successfully stored ${embeddedChunks.length} chunks in ChromaDB`
+      this.logger.log(
+        `Successfully stored ${embeddedChunks.length} chunks in ChromaDB`,
+        "success"
       );
     } catch (error) {
-      console.error("Failed to store chunks in ChromaDB:", error);
+      this.logger.log("Failed to store chunks in ChromaDB", "error");
       throw error;
     }
   }
@@ -302,8 +308,8 @@ export class ChromaVectorStore implements IVectorStore {
             chunkContextIds = contextIdsStr
               ? contextIdsStr.split(",").map(Number)
               : [];
-          } catch (error) {
-            console.error("Failed to parse contextIds:", error);
+          } catch {
+            this.logger.log("Failed to parse contextIds", "error");
             continue;
           }
 
@@ -318,9 +324,7 @@ export class ChromaVectorStore implements IVectorStore {
             lineStart: metadata.lineStart || 1,
             lineEnd: metadata.lineEnd || 1,
             hash: metadata.hash,
-            type: metadata.type as Chunk["type"],
             metaData: {},
-            getDescriptiveText: () => document,
           };
 
           queryResults.push({
@@ -338,7 +342,7 @@ export class ChromaVectorStore implements IVectorStore {
 
       return queryResults.sort((a, b) => b.score - a.score);
     } catch (error) {
-      console.error("Failed to query ChromaDB:", error);
+      this.logger.log("Failed to query ChromaDB", "error");
       throw error;
     }
   }
@@ -350,12 +354,12 @@ export class ChromaVectorStore implements IVectorStore {
 
     try {
       await this.client.deleteCollection({ name: this.config.collectionName });
-      console.log("Cleared ChromaDB collection");
+      this.logger.log("Cleared ChromaDB collection", "success");
 
       // Recreate the collection
       await this.initialize();
     } catch (error) {
-      console.error("Failed to clear ChromaDB collection:", error);
+      this.logger.log("Failed to clear ChromaDB collection", "error");
       throw error;
     }
   }
@@ -370,7 +374,7 @@ export class ChromaVectorStore implements IVectorStore {
         collections: collections.map((c: { name: string }) => c.name),
       };
     } catch (error) {
-      console.error("Failed to get ChromaDB stats:", error);
+      this.logger.log("Failed to get ChromaDB stats", "error");
       throw error;
     }
   }
@@ -390,10 +394,10 @@ export class ChromaVectorStore implements IVectorStore {
         await this.collection.delete({
           ids: results.ids,
         });
-        console.log(`Removed ${results.ids.length} chunks for ${filePath}`);
+        this.logger.log(`Removed ${results.ids.length} chunks for ${filePath}`, "success");
       }
     } catch (error) {
-      console.error(`Failed to remove chunks for ${filePath}:`, error);
+      this.logger.log(`Failed to remove chunks for ${filePath}`, "error");
       throw error;
     }
   }
@@ -401,6 +405,6 @@ export class ChromaVectorStore implements IVectorStore {
   async close(): Promise<void> {
     // ChromaDB client doesn't require explicit closing for HTTP client
     this.collection = null;
-    console.log("VectorStore closed");
+    this.logger.log("VectorStore closed", "info");
   }
 }

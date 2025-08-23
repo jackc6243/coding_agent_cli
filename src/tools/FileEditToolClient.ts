@@ -1,4 +1,4 @@
-import { ContextManager } from "../context/contextManager.js";
+import { ContextManager } from "../context/ContextManager.js";
 import { FileNode } from "../context/ContextTree.js";
 import { BaseToolClient } from "./BaseToolClient.js";
 import { ToolResult } from "./types.js";
@@ -6,17 +6,16 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs";
 
 export class FileEditToolClient extends BaseToolClient {
-  private contextManager: ContextManager;
   constructor(contextManager: ContextManager) {
-    super("File Edit Tools");
-    this.contextManager = contextManager;
+    super("File", contextManager);
     this.registerTools();
   }
 
   private registerTools(): void {
     const readFileTool: Tool = {
       name: "read_file",
-      description: "Read the contents of a file and add it to the context tree.",
+      description:
+        "Read the contents of a file and add it to the context tree.",
       inputSchema: {
         type: "object",
         properties: {
@@ -50,7 +49,8 @@ export class FileEditToolClient extends BaseToolClient {
 
     const editFileTool: Tool = {
       name: "edit_file",
-      description: "Edit specific lines in a file by replacing a line range with new content.",
+      description:
+        "Edit specific lines in a file by replacing a line range with new content.",
       inputSchema: {
         type: "object",
         properties: {
@@ -68,7 +68,8 @@ export class FileEditToolClient extends BaseToolClient {
           },
           newContent: {
             type: "string",
-            description: "The new content to replace the specified line range (optional - omit to delete lines)",
+            description:
+              "The new content to replace the specified line range (optional - omit to delete lines)",
           },
         },
         required: ["filePath", "lineStart", "lineEnd"],
@@ -98,15 +99,15 @@ export class FileEditToolClient extends BaseToolClient {
       filePath: string;
       content: string;
     };
-    
+
     try {
       // Write content to file
-      fs.writeFileSync(filePath, content, 'utf8');
-      
+      fs.writeFileSync(filePath, content, "utf8");
+
       // Create and update the FileNode in context tree
       const node = new FileNode(filePath, true);
       this.contextManager.currentContextTree.updateNode(filePath, node);
-      
+
       return {
         content: node,
         isError: false,
@@ -128,25 +129,30 @@ export class FileEditToolClient extends BaseToolClient {
       lineEnd: string;
       newContent?: string;
     };
-    
+
     try {
       // Read existing file content
-      const existingContent = fs.readFileSync(filePath, 'utf8');
-      const lines = existingContent.split('\n');
-      
+      const existingContent = fs.readFileSync(filePath, "utf8");
+      const lines = existingContent.split("\n");
+
       // Parse line numbers (convert from 1-based to 0-based indexing)
       const startLine = parseInt(lineStart, 10) - 1;
       const endLine = parseInt(lineEnd, 10) - 1;
-      
+
       // Validate line numbers
-      if (startLine < 0 || endLine < 0 || startLine >= lines.length || endLine >= lines.length) {
+      if (
+        startLine < 0 ||
+        endLine < 0 ||
+        startLine >= lines.length ||
+        endLine >= lines.length
+      ) {
         return {
           content: `Error: Invalid line range. File has ${lines.length} lines, requested range: ${lineStart}-${lineEnd}`,
           isError: true,
           executedAt: new Date(),
         };
       }
-      
+
       if (startLine > endLine) {
         return {
           content: `Error: Start line (${lineStart}) cannot be greater than end line (${lineEnd})`,
@@ -154,24 +160,24 @@ export class FileEditToolClient extends BaseToolClient {
           executedAt: new Date(),
         };
       }
-      
+
       // Replace the specified line range with new content
-      const contentLines = newContent ? newContent.split('\n') : [];
+      const contentLines = newContent ? newContent.split("\n") : [];
       const newLines = [
         ...lines.slice(0, startLine),
         ...contentLines,
-        ...lines.slice(endLine + 1)
+        ...lines.slice(endLine + 1),
       ];
-      
-      const modifiedContent = newLines.join('\n');
-      
+
+      const modifiedContent = newLines.join("\n");
+
       // Write modified content back to file
-      fs.writeFileSync(filePath, modifiedContent, 'utf8');
-      
+      fs.writeFileSync(filePath, modifiedContent, "utf8");
+
       // Create and update the FileNode in context tree
       const node = new FileNode(filePath, true);
       this.contextManager.currentContextTree.updateNode(filePath, node);
-      
+
       return {
         content: node,
         isError: false,

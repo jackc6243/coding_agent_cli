@@ -1,7 +1,6 @@
-
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug' | 'success';
+export type LogLevel = "info" | "warn" | "error" | "debug" | "success";
 export interface LoggerInterface {
-    logLevel: LogLevel;
-    log(message: string, levelOverride?: LogLevel): void;
-    logObject(label: string, obj: any, levelOverride?: LogLevel): void;
+  logLevel: LogLevel;
+  log(message: string, levelOverride?: LogLevel): void;
+  logObject(label: string, obj: never, levelOverride?: LogLevel): void;
 }

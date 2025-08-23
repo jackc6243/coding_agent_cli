@@ -1,7 +1,10 @@
-import { ContextManager } from "../../context/contextManager.js";
-import { ContextTree, DirNode } from "../../context/ContextTree.js";
+import { ContextManager } from "../../context/ContextManager.js";
+import {
+  ContextTree,
+  ContextTreeNode,
+  DirNode,
+} from "../../context/ContextTree.js";
 import { IContextRetrieverService } from "./IContextRetrieverService.js";
-import { Node } from "../../context/types.js";
 
 export class DefaultCtxRetriever implements IContextRetrieverService {
   async retrieveContextTree(
@@ -40,7 +43,7 @@ export class DefaultCtxRetriever implements IContextRetrieverService {
   }
 
   private pruneUnrelevantNodes(
-    node: Node,
+    node: ContextTreeNode,
     relevantPaths: Set<string>
   ): boolean {
     if (node instanceof DirNode) {
@@ -71,8 +74,7 @@ export class DefaultCtxRetriever implements IContextRetrieverService {
     query: string,
     context: ContextManager
   ): Promise<string[]> {
-    const embedding =
-      await context.embeddingService.embedRaw(query);
+    const embedding = await context.embeddingService.embedRaw(query);
     const results = await context.vectorStore.query(
       embedding,
       10,

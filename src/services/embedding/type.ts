@@ -1,11 +1,12 @@
-import { Chunk } from "../../chunking/types.js";
+import { Chunk } from "../../chunking/Chunk.js";
+import { ChunkContent } from "../../chunking/types.js";
 
 export interface Embedding extends Chunk {
-    embedding: number[];
+  embedding: number[];
 }
 
 export interface EmbeddingService {
-    embedRaw(raw: string) : Promise<number[]>;
-    embedChunks(chunks : Chunk[]) : Promise<Embedding[]>;
-    embedOneChunk(chunk : Chunk) : Promise<Embedding>;
+  embedRaw(raw: string): Promise<number[]>;
+  embedChunks(chunks: ChunkContent[]): Promise<Embedding[]>;
+  embedOneChunk(chunk: ChunkContent): Promise<Embedding>;
 }

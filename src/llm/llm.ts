@@ -1,15 +1,15 @@
 import { AnthropicAdaptor } from "./adaptors/anthropicAdaptor.js";
 import { GeminiAdaptor } from "./adaptors/geminiAdaptor.js";
 import { OpenAIAdaptor } from "./adaptors/openAIAdaptor.js";
-import { LLMAdaptorInterface, LLMProvider } from "./types.js";
+import { BaseLLMAdaptor, LLMProvider } from "./adaptors/BaseLLMAdaptor.js";
 import { ChatMessage } from "../types.js";
 import { ConsoleLogger } from "../logging/ConsoleLogger.js";
-import { ContextManager } from "../context/contextManager.js";
+import { ContextManager } from "../context/ContextManager.js";
 
 const logger = new ConsoleLogger("info");
 
 export class LLM {
-  llmAdaptor: LLMAdaptorInterface;
+  llmAdaptor: BaseLLMAdaptor;
   context: ContextManager;
 
   constructor(provider: LLMProvider, model: string, context: ContextManager) {

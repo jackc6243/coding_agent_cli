@@ -1,4 +1,5 @@
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { ContextManager } from "../context/ContextManager.js";
 
 export class ToolCall {
   id?: string;
@@ -41,6 +42,7 @@ export interface ToolResult {
 }
 
 export interface ToolClient {
+  contextManager: ContextManager;
   clientName: string;
   tools: Map<
     string,

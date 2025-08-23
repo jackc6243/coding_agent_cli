@@ -6,19 +6,18 @@ import {
   Schema,
 } from "@google/generative-ai";
 import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
-import { ContextManager } from "../../context/contextManager.js";
+import { ContextManager } from "../../context/ContextManager.js";
 import { ToolCall } from "../../tools/types.js";
 import { ChatMessage } from "../../types.js";
-import { LLMAdaptorInterface } from "../types.js";
+import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
 
 const logger = new ConsoleLogger("info");
 
-export class GeminiAdaptor implements LLMAdaptorInterface {
-  model: string;
+export class GeminiAdaptor extends BaseLLMAdaptor {
   private client: GoogleGenerativeAI;
 
   constructor(model: string) {
-    this.model = model;
+    super(model);
     this.client = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
   }
 
@@ -76,7 +75,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
     if (context.getToolSize() === 0) return undefined;
 
     const tools = [];
-    for (const { identifier, tool } of context.getAllTools()) {
+    for (const { identifier, tool } of context.getAllToolClients()) {
       tools.push({
         name: identifier,
         description: tool.description || "",
@@ -94,8 +93,7 @@ export class GeminiAdaptor implements LLMAdaptorInterface {
   async sendMessage(context: ContextManager): Promise<ChatMessage | undefined> {
     try {
       const tools = this.convertToolsToGeminiFormat(context);
-      const systemInstructions =
-        await context.getSystemInstructionsWithContext();
+      const systemInstructions = await this.getAllInitialContext(context);
       const model = this.client.getGenerativeModel({
         model: this.model,
         tools: tools ? [{ functionDeclarations: tools }] : undefined,

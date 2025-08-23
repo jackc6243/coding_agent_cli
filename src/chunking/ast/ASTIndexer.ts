@@ -1,6 +1,7 @@
 import { Parser, Language, Tree, Node } from 'web-tree-sitter';
 import { readFileSync } from 'fs';
 import { extname, join } from 'path';
+import { ConsoleLogger } from '../../logging/ConsoleLogger.js';
 
 export interface ASTNode {
     id: string;
@@ -30,6 +31,7 @@ export class ASTIndexer {
     private parsers: Map<string, Parser> = new Map();
     private languages: Map<string, Language> = new Map();
     private isInitialized = false;
+    private logger = new ConsoleLogger("info");
     private supportedExtensions: Record<string, string> = {
         '.ts': 'typescript',
         '.tsx': 'typescript',
@@ -83,9 +85,9 @@ export class ASTIndexer {
                 this.parsers.set(config.name, parser);
                 this.languages.set(config.name, language);
 
-                console.log(`✓ Loaded ${config.name} parser`);
+                this.logger.log(`✓ Loaded ${config.name} parser`, "success");
             } catch (error) {
-                console.warn(`⚠ Failed to load ${config.name} parser:`, error);
+                this.logger.log(`⚠ Failed to load ${config.name} parser`, "warn");
                 // Create a basic parser without language for error-tolerant parsing
                 const parser = new Parser();
                 this.parsers.set(config.name, parser);
@@ -124,7 +126,7 @@ export class ASTIndexer {
         const hasErrors = this.hasParseErrors(tree.rootNode);
 
         if (hasErrors) {
-            console.warn(`Parse errors detected in ${filePath}, but continuing with error-tolerant parsing`);
+            this.logger.log(`Parse errors detected in ${filePath}, but continuing with error-tolerant parsing`, "warn");
         }
 
         const nodes = this.extractNodesFromTree(tree, filePath, fileContent, language);

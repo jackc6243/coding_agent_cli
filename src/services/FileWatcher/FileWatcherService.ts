@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import { extname, resolve } from 'path';
 import Hashhelper from '../../utils/Hashhelper.js';
 import { FilePermissions } from '../../context/FilePermissions.js';
+import { ConsoleLogger } from '../../logging/ConsoleLogger.js';
 
 export interface FileChangeEvent {
     type: 'add' | 'change' | 'unlink';
@@ -26,6 +27,7 @@ export class FileWatcherService extends EventEmitter {
     private isWatching = false;
     private pendingChanges = new Map<string, NodeJS.Timeout>();
     private fileCache = new Map<string, { mtime: number; hash: string }>();
+    private logger = new ConsoleLogger("info");
     private defaultConfig: Required<WatcherConfig> = {
         excludePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
         includeExtensions: [],
@@ -47,7 +49,7 @@ export class FileWatcherService extends EventEmitter {
      */
     async startWatching(): Promise<void> {
         if (this.isWatching) {
-            console.log('File watcher is already running');
+            this.logger.log('File watcher is already running', 'info');
             return;
         }
 
@@ -55,7 +57,7 @@ export class FileWatcherService extends EventEmitter {
         const allowedPaths = Array.from(this.filePermissions.files.keys());
         
         if (allowedPaths.length === 0) {
-            console.log('No files to watch based on permissions');
+            this.logger.log('No files to watch based on permissions', 'info');
             return;
         }
 
@@ -80,12 +82,12 @@ export class FileWatcherService extends EventEmitter {
             .on('unlink', (filePath) => this.handleFileChange('unlink', filePath))
             .on('error', (error) => this.emit('error', error))
             .on('ready', () => {
-                console.log('Initial scan complete. Watching for changes...');
+                this.logger.log('Initial scan complete. Watching for changes...', 'success');
                 this.emit('ready');
             });
 
         this.isWatching = true;
-        console.log(`Started watching ${allowedPaths.length} allowed paths`);
+        this.logger.log(`Started watching ${allowedPaths.length} allowed paths`, 'success');
     }
 
     /**
@@ -109,7 +111,7 @@ export class FileWatcherService extends EventEmitter {
         }
 
         this.isWatching = false;
-        console.log('Stopped file watching');
+        this.logger.log('Stopped file watching', 'info');
     }
 
     /**
@@ -204,7 +206,7 @@ export class FileWatcherService extends EventEmitter {
             this.emit('fileChange', { type, filePath });
 
         } catch (error) {
-            console.error(`Error handling file change for ${filePath}:`, error);
+            this.logger.log(`Error handling file change for ${filePath}`, 'error');
         }
     }
 

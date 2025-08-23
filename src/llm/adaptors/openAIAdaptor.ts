@@ -1,18 +1,17 @@
 import OpenAI from "openai";
-import { ContextManager } from "../../context/contextManager.js";
+import { ContextManager } from "../../context/ContextManager.js";
 import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
 import { ToolCall } from "../../tools/types.js";
 import { ChatMessage } from "../../types.js";
-import { LLMAdaptorInterface } from "../types.js";
+import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
 
 const logger = new ConsoleLogger("info");
 
-export class OpenAIAdaptor implements LLMAdaptorInterface {
-  model: string;
+export class OpenAIAdaptor extends BaseLLMAdaptor {
   private client: OpenAI;
 
   constructor(model: string) {
-    this.model = model;
+    super(model);
     this.client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -24,7 +23,7 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
     // Add system message if present
-    const systemInstructions = await context.getSystemInstructionsWithContext();
+    const systemInstructions = await this.getAllInitialContext(context);
     if (systemInstructions) {
       messages.push({
         role: "system",
@@ -83,14 +82,16 @@ export class OpenAIAdaptor implements LLMAdaptorInterface {
         messages: messages,
         tools:
           context.getToolSize() > 0
-            ? Array.from(context.getAllTools()).map(({ identifier, tool }) => ({
-                type: "function" as const,
-                function: {
-                  name: identifier,
-                  description: tool.description || "",
-                  parameters: tool.inputSchema,
-                },
-              }))
+            ? Array.from(context.getAllToolClients()).map(
+                ({ identifier, tool }) => ({
+                  type: "function" as const,
+                  function: {
+                    name: identifier,
+                    description: tool.description || "",
+                    parameters: tool.inputSchema,
+                  },
+                })
+              )
             : undefined,
       });
 

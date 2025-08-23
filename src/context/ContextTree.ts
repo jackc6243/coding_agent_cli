@@ -1,10 +1,24 @@
-import { Node } from "./types.js";
 import { FilePermissions } from "./FilePermissions.js";
 import * as fs from "fs";
 import * as path from "path";
 import { FileChunkMemoryStore } from "../chunking/FileChunkMemoryStore.js";
+import { ConsoleLogger } from "../logging/ConsoleLogger.js";
 
-export class FileNode extends Node {
+export class ContextTreeNode {
+  fullPath: string;
+  name: string;
+  lastModified: number;
+  isEnabled: boolean;
+
+  constructor(fullPath: string, isEnabled: boolean = false) {
+    this.isEnabled = isEnabled;
+    this.fullPath = fullPath;
+    this.name = path.basename(fullPath);
+    this.lastModified = Date.now();
+  }
+}
+
+export class FileNode extends ContextTreeNode {
   constructor(fullPath: string, isEnabled: boolean = false) {
     super(fullPath, isEnabled);
   }
@@ -16,12 +30,12 @@ export class FileNode extends Node {
   }
 }
 
-export class DirNode extends Node {
-  children: Map<string, Node> = new Map();
+export class DirNode extends ContextTreeNode {
+  children: Map<string, ContextTreeNode> = new Map();
   constructor(fullPath: string, isEnabled: boolean = false) {
     super(fullPath, isEnabled);
   }
-  addChild(node: Node): void {
+  addChild(node: ContextTreeNode): void {
     this.children.set(node.name, node);
   }
 
@@ -29,7 +43,7 @@ export class DirNode extends Node {
     return this.children.delete(name);
   }
 
-  getChild(name: string): Node | undefined {
+  getChild(name: string): ContextTreeNode | undefined {
     return this.children.get(name);
   }
 
@@ -41,7 +55,7 @@ export class DirNode extends Node {
     return Array.from(this.children.keys());
   }
 
-  getAllChildren(): Node[] {
+  getAllChildren(): ContextTreeNode[] {
     return Array.from(this.children.values());
   }
 
@@ -61,7 +75,7 @@ export class ContextTree {
     initialFilePermissions?: FilePermissions
   ) {
     this.fileMemoryStore = fileMemoryStore;
-    const rootPath = filePermissions.rootFolder;
+    const rootPath = filePermissions.rootPath;
     this.rootNode = new DirNode(rootPath);
     this.buildTree(
       rootPath,
@@ -107,7 +121,8 @@ export class ContextTree {
         }
       }
     } catch (error) {
-      console.error(`Error building tree for directory ${dirPath}:`, error);
+      const logger = new ConsoleLogger("error");
+      logger.log(`Error building tree for directory ${dirPath}`, "error");
     }
   }
 
@@ -138,8 +153,8 @@ export class ContextTree {
     return hasValidChildren;
   }
 
-  findNode(pathSegments: string[]): Node | undefined {
-    let currentNode: Node = this.rootNode;
+  findNode(pathSegments: string[]): ContextTreeNode | undefined {
+    let currentNode: ContextTreeNode = this.rootNode;
 
     for (const segment of pathSegments) {
       if (currentNode instanceof DirNode) {
@@ -156,7 +171,7 @@ export class ContextTree {
     return currentNode;
   }
 
-  findNodeByPath(filePath: string): Node | undefined {
+  findNodeByPath(filePath: string): ContextTreeNode | undefined {
     const relativePath = path.relative(this.rootNode.fullPath, filePath);
     if (relativePath.startsWith("..")) {
       return undefined;
@@ -186,7 +201,10 @@ export class ContextTree {
     return directories;
   }
 
-  private traverseNodes(node: Node, callback: (node: Node) => void): void {
+  private traverseNodes(
+    node: ContextTreeNode,
+    callback: (node: ContextTreeNode) => void
+  ): void {
     callback(node);
 
     if (node instanceof DirNode) {
@@ -217,7 +235,10 @@ export class ContextTree {
     return count;
   }
 
-  insertNode(fullPath: string, node: Node): Node | undefined {
+  insertNode(
+    fullPath: string,
+    node: ContextTreeNode
+  ): ContextTreeNode | undefined {
     const parentPath = path.dirname(fullPath);
     const parentNode = this.findNodeByPath(parentPath);
     if (parentNode instanceof DirNode) {
@@ -227,7 +248,10 @@ export class ContextTree {
     return undefined;
   }
 
-  updateNode(fullPath: string, newNode: Node): Node | undefined {
+  updateNode(
+    fullPath: string,
+    newNode: ContextTreeNode
+  ): ContextTreeNode | undefined {
     const parentPath = path.dirname(fullPath);
     const nodeName = path.basename(fullPath);
     const parentNode = this.findNodeByPath(parentPath);
@@ -269,7 +293,7 @@ export class ContextTree {
   }
 
   private async getNodeString(
-    node: Node,
+    node: ContextTreeNode,
     depth: number,
     includeContent: boolean,
     maxDepth: number,

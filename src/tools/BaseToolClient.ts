@@ -3,6 +3,7 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { Ajv } from "ajv";
 import { ConsoleLogger } from "../logging/ConsoleLogger.js";
 import { getAppConfig } from "../config/AppConfig.js";
+import { ContextManager } from "../context/ContextManager.js";
 
 interface ToolRegistration {
   tool: Tool;
@@ -15,11 +16,16 @@ interface ToolRegistration {
 export abstract class BaseToolClient implements ToolClient {
   private ajv = new Ajv({ allErrors: true, strict: false });
   protected logger = new ConsoleLogger(getAppConfig().logging.level);
+  contextManager: ContextManager;
   clientName: string;
   tools: Map<string, ToolRegistration>;
 
-  constructor(name: string) {
+  constructor(name: string, contextManager: ContextManager) {
+    if (name.includes('-')) {
+      throw new Error(`Tool client name '${name}' cannot contain hyphens. Use underscores or camelCase instead.`);
+    }
     this.clientName = name;
+    this.contextManager = contextManager;
     this.tools = new Map();
   }
 

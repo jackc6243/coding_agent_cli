@@ -1,17 +1,16 @@
 import { Anthropic } from "@anthropic-ai/sdk";
-import { LLMAdaptorInterface } from "../types.js";
-import { ContextManager } from "../../context/contextManager.js";
+import { ContextManager } from "../../context/ContextManager.js";
 import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
 import { ChatMessage } from "../../types.js";
 import { ToolCall } from "../../tools/types.js";
+import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
 
 const logger = new ConsoleLogger("info");
-export class AnthropicAdaptor implements LLMAdaptorInterface {
-  model: string;
+export class AnthropicAdaptor extends BaseLLMAdaptor {
   private client: Anthropic;
 
   constructor(model: string) {
-    this.model = model;
+    super(model);
     this.client = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -75,6 +74,8 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
         // For assistant messages with completed tool calls, create a separate user message with tool results
         if (msg.role === "assistant" && msg.hasToolCalls()) {
           const toolResults: Anthropic.ContentBlockParam[] = [];
+          const incompleteToolCalls: string[] = [];
+          
           for (const toolCall of msg.toolCalls!) {
             if (toolCall.result) {
               toolResults.push({
@@ -86,14 +87,20 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
                     : JSON.stringify(toolCall.result.content),
                 is_error: toolCall.result.isError || false,
               });
+            } else {
+              incompleteToolCalls.push(toolCall.id || "");
             }
           }
 
-          if (toolResults.length > 0) {
+          // Only add tool results if we have results for ALL tool calls in this message
+          if (toolResults.length > 0 && incompleteToolCalls.length === 0) {
             messages.push({
               role: "user",
               content: toolResults,
             });
+          } else if (incompleteToolCalls.length > 0) {
+            // Log warning about incomplete tool calls
+            console.warn(`Assistant message has tool_use blocks without corresponding tool_result blocks: ${incompleteToolCalls.join(", ")}`);
           }
         }
       }
@@ -102,9 +109,11 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
     return messages;
   }
 
-  private convertToolsToAnthropicFormat(context: ContextManager): Anthropic.Tool[] {
+  private convertToolsToAnthropicFormat(
+    context: ContextManager
+  ): Anthropic.Tool[] {
     const tools: Anthropic.Tool[] = [];
-    for (const { identifier, tool } of context.getAllTools()) {
+    for (const { identifier, tool } of context.getAllToolClients()) {
       tools.push({
         name: identifier,
         description: tool.description || "",
@@ -119,6 +128,29 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
     return tools;
   }
 
+  private validateMessageStructure(messages: Anthropic.Messages.MessageParam[]): void {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+        const toolUseBlocks = msg.content.filter(block => block.type === "tool_use");
+        if (toolUseBlocks.length > 0) {
+          // Check if the next message contains tool_result blocks
+          const nextMsg = i + 1 < messages.length ? messages[i + 1] : null;
+          if (!nextMsg || nextMsg.role !== "user") {
+            throw new Error(`Assistant message at index ${i} contains tool_use blocks but is not followed by a user message with tool_result blocks`);
+          }
+          
+          if (Array.isArray(nextMsg.content)) {
+            const toolResultBlocks = nextMsg.content.filter(block => block.type === "tool_result");
+            if (toolResultBlocks.length !== toolUseBlocks.length) {
+              throw new Error(`Assistant message at index ${i} has ${toolUseBlocks.length} tool_use blocks but following user message has ${toolResultBlocks.length} tool_result blocks`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   async sendMessage(context: ContextManager): Promise<ChatMessage | undefined> {
     try {
       const messages = this.convertMessagesToAnthropicFormat(context);
@@ -126,8 +158,10 @@ export class AnthropicAdaptor implements LLMAdaptorInterface {
         context.getToolSize() > 0
           ? this.convertToolsToAnthropicFormat(context)
           : undefined;
-      const systemInstructions =
-        await context.getSystemInstructionsWithContext();
+      const systemInstructions = await this.getAllInitialContext(context);
+
+      // Validate message structure before sending to API
+      this.validateMessageStructure(messages);
 
       const response = await this.client.messages.create({
         model: this.model,

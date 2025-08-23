@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 export class FilePermissions {
-  rootFolder: string;
+  rootPath: string;
   files: Map<string, boolean> = new Map();
 
   constructor(
@@ -15,7 +15,7 @@ export class FilePermissions {
       );
     }
 
-    this.rootFolder = rootFolder;
+    this.rootPath = rootFolder;
     if (allFiles) {
       for (const { path, canWrite } of allFiles) {
         if (!fs.existsSync(path)) {
@@ -35,14 +35,14 @@ export class FilePermissions {
   }
 
   checkIfReadAllowed(path: string): boolean {
-    if (path.startsWith(this.rootFolder) && this.files.has(path)) {
+    if (path.startsWith(this.rootPath) && this.files.has(path)) {
       return true;
     }
     return false;
   }
 
   checkIfWriteAllowed(path: string): boolean {
-    if (path.startsWith(this.rootFolder) && (this.files.get(path) ?? false)) {
+    if (path.startsWith(this.rootPath) && (this.files.get(path) ?? false)) {
       return true;
     }
     return false;
@@ -78,7 +78,7 @@ export class FilePermissions {
       }
     };
 
-    scanDirectory(this.rootFolder);
+    scanDirectory(this.rootPath);
     return new Set(files);
   }
 
@@ -88,7 +88,7 @@ export class FilePermissions {
 
     // Group paths by their parent directory
     for (const fullPath of paths) {
-      const relativePath = path.relative(this.rootFolder, fullPath);
+      const relativePath = path.relative(this.rootPath, fullPath);
       const parts = relativePath.split(path.sep);
       const canWrite = this.files.get(fullPath) ?? false;
 

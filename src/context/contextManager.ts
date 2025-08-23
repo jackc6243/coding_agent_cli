@@ -24,7 +24,6 @@ export class ContextManager {
   systemInstructions: string;
   messageHistory: ChatMessage[] = [];
   toolClients: Map<string, ToolClient>;
-  clients: ToolClient[] = [];
   specialContext: SpecialContext | null = null;
   specialInstructions: SpecialInstructions | null = null;
   taskList: Task[] | null = null;
@@ -64,7 +63,10 @@ export class ContextManager {
       chunkStrategist,
       filePermissions
     );
-    this.initialContextTree = new ContextTree(initialFileMemoryStore, filePermissions);
+    this.initialContextTree = new ContextTree(
+      initialFileMemoryStore,
+      filePermissions
+    );
 
     this.fileWatcher.on("fileChange", async ({ type, path }) => {
       if (
@@ -80,7 +82,7 @@ export class ContextManager {
 
   // clears everything and re-indexes everything
   async reIndex() {
-    this.vectorStore.eraseFilepath(this.filePermissions.rootFolder);
+    this.vectorStore.eraseFilepath(this.filePermissions.rootPath);
     this.filePermissions
       .getAllFilesFromRoot()
       .forEach((filePath) => this.reIndexFile(filePath));
@@ -90,7 +92,11 @@ export class ContextManager {
     return this.currentContextTree.getTreeString(fullString);
   }
 
-  *getAllTools(): Generator<{ identifier: string; tool: Tool }, void, void> {
+  *getAllToolClients(): Generator<
+    { identifier: string; tool: Tool },
+    void,
+    void
+  > {
     for (const [clientName, client] of this.toolClients) {
       for (const tool of client.getToolList()) {
         yield { identifier: `${clientName}-${tool.name}`, tool };
@@ -105,8 +111,10 @@ export class ContextManager {
     );
   }
 
-  registerClient(getClientFunction: () => ToolClient) {
-    const client = getClientFunction();
+  registerToolClients(
+    getClientFunction: (contextManager: ContextManager) => ToolClient
+  ) {
+    const client = getClientFunction(this);
     this.toolClients.set(client.clientName, client);
   }
 
@@ -117,16 +125,6 @@ export class ContextManager {
   compressChatHistory() {}
 
   async waitInitialised(): Promise<void> {}
-
-  async getSystemInstructionsWithContext(): Promise<string> {
-    const contextTreeString = await this.initialContextTree.getTreeString(
-      true, // includeContent
-      Infinity, // maxDepth
-      true // excludeOldContent
-    );
-
-    return `${this.systemInstructions}\n\n## Initial Code Context\n\n${contextTreeString}`;
-  }
 
   retrieveContextTree(): ContextTree {
     return this.currentContextTree;
@@ -140,5 +138,22 @@ export class ContextManager {
     this.vectorStore.addContextId(chunkContents, this.contextId);
     const node = new FileNode(filePath, true);
     this.currentContextTree.updateNode(filePath, node);
+  }
+
+  async cleanup(): Promise<void> {
+    try {
+      // Stop file watcher if it exists
+      if (this.fileWatcher) {
+        await this.fileWatcher.stopWatching();
+      }
+
+      // Close vector store connection
+      if (this.vectorStore) {
+        await this.vectorStore.close();
+      }
+    } catch (error) {
+      // Log cleanup errors but don't throw to avoid masking original errors
+      console.error("Error during context manager cleanup:", error);
+    }
   }
 }

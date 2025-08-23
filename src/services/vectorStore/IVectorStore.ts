@@ -1,4 +1,4 @@
-import { Chunk } from "../../chunking/types.js";
+import { Chunk } from "../../chunking/Chunk.js";
 import { Embedding } from "../embedding/type.js";
 
 export interface VectorStoreConfig {

@@ -1,9 +1,9 @@
-import { Context } from '../context/context.js';
+import { ContextManager } from '../context/contextManager.js';
 import { ChatMessage } from '../types.js';
 
 export type LLMProvider = "openAI" | "anthropic" | "gemini";
 
 export interface LLMAdaptorInterface {
     model: string;
-    sendMessage(context: Context): Promise<ChatMessage | undefined>;
+    sendMessage(context: ContextManager): Promise<ChatMessage | undefined>;
 };

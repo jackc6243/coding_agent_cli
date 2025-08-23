@@ -3,7 +3,7 @@ import { BaseToolClient } from "../tools/BaseToolClient.js";
 import { SERVICE_CONFIG } from "../config/Constants.js";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { ToolCall } from "../tools/types.js";
+import { ToolResult } from "../tools/types.js";
 
 export class MCPToolClient extends BaseToolClient {
     private mcpClient: Client;
@@ -23,7 +23,7 @@ export class MCPToolClient extends BaseToolClient {
 
             toolsResult.tools.forEach((tool) => {
                 this.logger.logObject(`Registering tool: ${tool.name}`, tool, 'debug');
-                this.registerTool(tool);
+                this.registerTool(tool, this.handleMCPToolCall.bind(this));
             });
             this.logger.log("Connected to server with tools:", 'success');
 
@@ -33,21 +33,18 @@ export class MCPToolClient extends BaseToolClient {
         }
     }
 
-    async populateToolCallResult(toolCall: ToolCall): Promise<void> {
+    async handleMCPToolCall(args: Record<string, unknown>, toolName: string): Promise<ToolResult> {
         try {
-            this.logger.logObject("Input ToolCall", toolCall, 'debug');
-
-            // Validate against the tool's input schema (your BaseToolClient method)
-            this.validateInputSchema(toolCall);
+            this.logger.logObject("Input args", args, 'debug');
 
             // Call the MCP tool — result is already the unwrapped JSON-RPC "result" object
             const result = await this.mcpClient.callTool({
-                name: toolCall.toolName,
-                arguments: toolCall.args || {},
+                name: toolName,
+                arguments: args,
             });
 
-            let aggregatedText: string[] = [];
-            let nonTextContent: unknown[] = [];
+            const aggregatedText: string[] = [];
+            const nonTextContent: unknown[] = [];
 
             // MCP spec says "content" is always an array of ContentPart objects
             if (result && result.content && Array.isArray(result.content)) {
@@ -82,21 +79,18 @@ export class MCPToolClient extends BaseToolClient {
                 finalContent = null;
             }
 
-            // Set successful result
-            toolCall.result = {
+            // Return successful result
+            return {
                 content: finalContent,
                 isError: false,
                 executedAt: new Date(),
             };
 
-            // Validate output against schema if defined
-            this.validateOutputSchema(toolCall);
-
         } catch (error) {
             // If an MCP server returns a JSON-RPC error, the SDK will throw here
             this.logger.logObject("ToolCall Error", error, 'error');
 
-            toolCall.result = {
+            return {
                 content: (error as Error).message,
                 isError: true,
                 executedAt: new Date(),

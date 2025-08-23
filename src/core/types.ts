@@ -1,10 +1,10 @@
 
-import { Context } from "../context/context.js";
+import { ContextManager } from "../context/contextManager.js";
 import { LLM } from "../llm/llm.js";
 
 export interface Node {
     nodeName: string;
-    context: Context;
+    context: ContextManager;
     llm: LLM;
     children: Map<string, Node>;
     connections: Map<string, Node>;

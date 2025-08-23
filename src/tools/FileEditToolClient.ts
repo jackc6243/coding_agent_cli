@@ -4,10 +4,13 @@ import { BaseToolClient } from "./BaseToolClient.js";
 import { ToolResult } from "./types.js";
 import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs";
+import * as path from "path";
 
 export class FileEditToolClient extends BaseToolClient {
+  private basePath: string;
   constructor(contextManager: ContextManager) {
     super("File", contextManager);
+    this.basePath = contextManager.filePermissions.rootPath;
     this.registerTools();
   }
 
@@ -85,8 +88,9 @@ export class FileEditToolClient extends BaseToolClient {
     const { filePath } = args as {
       filePath: string;
     };
-    const node = new FileNode(filePath, true);
-    this.contextManager.currentContextTree.updateNode(filePath, node);
+    const resolvedPath = path.resolve(this.basePath, filePath);
+    const node = new FileNode(resolvedPath, true);
+    this.contextManager.currentContextTree.updateNode(resolvedPath, node);
     return {
       content: node,
       isError: false,
@@ -102,11 +106,12 @@ export class FileEditToolClient extends BaseToolClient {
 
     try {
       // Write content to file
-      fs.writeFileSync(filePath, content, "utf8");
+      const resolvedPath = path.resolve(this.basePath, filePath);
+      fs.writeFileSync(resolvedPath, content, "utf8");
 
       // Create and update the FileNode in context tree
-      const node = new FileNode(filePath, true);
-      this.contextManager.currentContextTree.updateNode(filePath, node);
+      const node = new FileNode(resolvedPath, true);
+      this.contextManager.currentContextTree.updateNode(resolvedPath, node);
 
       return {
         content: node,
@@ -132,7 +137,8 @@ export class FileEditToolClient extends BaseToolClient {
 
     try {
       // Read existing file content
-      const existingContent = fs.readFileSync(filePath, "utf8");
+      const resolvedPath = path.resolve(this.basePath, filePath);
+      const existingContent = fs.readFileSync(resolvedPath, "utf8");
       const lines = existingContent.split("\n");
 
       // Parse line numbers (convert from 1-based to 0-based indexing)
@@ -172,11 +178,11 @@ export class FileEditToolClient extends BaseToolClient {
       const modifiedContent = newLines.join("\n");
 
       // Write modified content back to file
-      fs.writeFileSync(filePath, modifiedContent, "utf8");
+      fs.writeFileSync(resolvedPath, modifiedContent, "utf8");
 
       // Create and update the FileNode in context tree
-      const node = new FileNode(filePath, true);
-      this.contextManager.currentContextTree.updateNode(filePath, node);
+      const node = new FileNode(resolvedPath, true);
+      this.contextManager.currentContextTree.updateNode(resolvedPath, node);
 
       return {
         content: node,

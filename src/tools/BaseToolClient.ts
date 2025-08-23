@@ -21,8 +21,10 @@ export abstract class BaseToolClient implements ToolClient {
   tools: Map<string, ToolRegistration>;
 
   constructor(name: string, contextManager: ContextManager) {
-    if (name.includes('-')) {
-      throw new Error(`Tool client name '${name}' cannot contain hyphens. Use underscores or camelCase instead.`);
+    if (name.includes("-")) {
+      throw new Error(
+        `Tool client name '${name}' cannot contain hyphens. Use underscores or camelCase instead.`
+      );
     }
     this.clientName = name;
     this.contextManager = contextManager;
@@ -57,18 +59,18 @@ export abstract class BaseToolClient implements ToolClient {
 
   protected beforeToolCall(toolCall: ToolCall): void {
     // Default implementation - can be overridden by subclasses
+    this.logger.log(`Executing tool: ${toolCall.toolName}`, "info");
+
     this.logger.log(
-      `Executing tool: ${toolCall.toolName} with args: ${JSON.stringify(toolCall.args)}`,
+      `Using arguments: ${JSON.stringify(toolCall.args)}`,
       "debug"
     );
   }
 
   protected afterToolCall(toolCall: ToolCall): void {
     // Default implementation - can be overridden by subclasses
-    this.logger.log(
-      `Completed tool: ${toolCall.toolName} with result: ${JSON.stringify(toolCall.result)}`,
-      "debug"
-    );
+    this.logger.log(`Completed tool call: ${toolCall.toolName}`, "info");
+    this.logger.log(`With result: ${JSON.stringify(toolCall.result)}`, "debug");
   }
 
   getToolList(): Tool[] {

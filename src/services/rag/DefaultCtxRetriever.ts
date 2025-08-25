@@ -1,81 +1,107 @@
 import { ContextManager } from "../../context/ContextManager.js";
-import {
-  ContextTree,
-  ContextTreeNode,
-  DirNode,
-} from "../../context/ContextTree.js";
-import { IContextRetrieverService } from "./IContextRetrieverService.js";
+import { ContextTree } from "../../context/ContextTree.js";
+import { IVectorStore } from "../vectorStore/IVectorStore.js";
+import { IRetrievalService } from "./IRetrievalService.js";
+import { IEmbeddingService } from "../embedding/type.js";
+import { ChromaVectorStore } from "../vectorStore/ChromaVectorStore.js";
+import { OpenAIEmbeddingService } from "../embedding/OpenAIEmbeddingService.js";
+import { FilePermissions } from "../../context/FilePermissions.js";
+import { getAppConfig } from "../../config/AppConfig.js";
+import { GlobalFileWatcher } from "../FileWatcher/GlobalFileWatcher.js";
+import { TextChunker } from "../chunking/chunkingStrategies/TextChunker.js";
+import { DefaultChunkStorage } from "../chunking/ChunkStorage.js";
+import { ChunkManager } from "../chunking/ChunkManager.js";
+import { Chunk } from "../chunking/Chunk.js";
 
-export class DefaultCtxRetriever implements IContextRetrieverService {
+export async function getTraditionalRAG(
+  filePermissions: FilePermissions
+): Promise<DefaultCtxRetriever> {
+  const chunkStrategist = new TextChunker();
+  const chunkStorage = new DefaultChunkStorage();
+  const chunkManager = new ChunkManager(
+    chunkStrategist,
+    filePermissions,
+    chunkStorage,
+    GlobalFileWatcher
+  );
+
+  const config = getAppConfig();
+
+  const embeddingService = new OpenAIEmbeddingService();
+
+  // Initialize vector store
+  const vectorStore = new ChromaVectorStore({
+    url: config.vectorStore.url,
+    collectionName: config.vectorStore.collectionName,
+    collectionDescription: config.vectorStore.collectionDescription,
+  });
+
+  // Initialize the vector store
+  try {
+    await vectorStore.initialize();
+  } catch (error) {
+    throw new Error(
+      `Failed to initialize vector store. Ensure ChromaDB is running at ${config.vectorStore.url}. Error: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  return new DefaultCtxRetriever(chunkManager, vectorStore, embeddingService);
+}
+
+export class DefaultCtxRetriever implements IRetrievalService {
+  private vectorStore: IVectorStore;
+  private embeddingService: IEmbeddingService;
+  private chunkManager: ChunkManager;
+  outdatedChunks: Map<string, Chunk> = new Map();
+
+  constructor(
+    chunkManager: ChunkManager,
+    vectorStore: IVectorStore,
+    embeddingService: IEmbeddingService
+  ) {
+    this.chunkManager = chunkManager;
+    this.vectorStore = vectorStore;
+    this.embeddingService = embeddingService;
+
+    this.chunkManager.on("delete", (chunks: Chunk[]) => {
+      this.vectorStore.eraseEmbeddings(chunks);
+    });
+
+    this.chunkManager.on("insert", (chunks: Chunk[]) => {
+      chunks.forEach((chunk) => {
+        this.outdatedChunks.set(chunk.hash, chunk);
+      });
+    });
+
+    this.chunkManager.on("reset", () => {
+      this.vectorStore.clear();
+    });
+  }
+
   async retrieveContextTree(
     query: string,
     context: ContextManager
   ): Promise<ContextTree> {
-    const relevantFilepaths = await this.retrieveContextFilepaths(
+    const relevantFilepaths = await this.retrieveRelevantFilePaths(
       query,
       context
     );
 
-    // Get the current context tree from the context
-    const fullContextTree = context.retrieveContextTree();
-
     // Create a new context tree with only relevant files
-    const filteredContextTree = new ContextTree(
-      fullContextTree.fileMemoryStore,
-      context.filePermissions
-    );
+    const filteredContextTree = new ContextTree(context.filePermissions);
 
     // Filter the tree to only include relevant file paths
-    this.filterContextTreeByPaths(filteredContextTree, relevantFilepaths);
+    filteredContextTree.filterByRelevantPaths(relevantFilepaths);
 
     return filteredContextTree;
   }
 
-  private filterContextTreeByPaths(
-    contextTree: ContextTree,
-    relevantPaths: string[]
-  ): void {
-    // Create a set for fast lookup
-    const pathSet = new Set(relevantPaths);
-
-    // Traverse and remove nodes that are not in the relevant paths
-    this.pruneUnrelevantNodes(contextTree.rootNode, pathSet);
-  }
-
-  private pruneUnrelevantNodes(
-    node: ContextTreeNode,
-    relevantPaths: Set<string>
-  ): boolean {
-    if (node instanceof DirNode) {
-      const childrenToRemove: string[] = [];
-      let hasRelevantChildren = false;
-
-      for (const [childName, child] of node.children) {
-        if (this.pruneUnrelevantNodes(child, relevantPaths)) {
-          hasRelevantChildren = true;
-        } else {
-          childrenToRemove.push(childName);
-        }
-      }
-
-      // Remove children that don't have relevant content
-      for (const childName of childrenToRemove) {
-        node.removeChild(childName);
-      }
-
-      return hasRelevantChildren;
-    } else {
-      // For files, check if the path is in relevant paths
-      return relevantPaths.has(node.fullPath);
-    }
-  }
-
-  async retrieveContextFilepaths(
+  private async retrieveRelevantFilePaths(
     query: string,
     context: ContextManager
   ): Promise<string[]> {
-    const embedding = await context.embeddingService.embedRaw(query);
-    const results = await context.vectorStore.query(
+    const embedding = await this.embeddingService.embedRaw(query);
+    const results = await this.vectorStore.query(
       embedding,
       10,
       context.contextId
@@ -89,5 +115,20 @@ export class DefaultCtxRetriever implements IContextRetrieverService {
       }
     });
     return Array.from(relevantFilePaths);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async initiate(id?: number): Promise<void> {
+    this.chunkManager.index();
+  }
+
+  async cleanup(): Promise<void> {
+    try {
+      if (this.vectorStore) {
+        await this.vectorStore.close();
+      }
+    } catch (error) {
+      console.error("Error during vector store cleanup:", error);
+    }
   }
 }

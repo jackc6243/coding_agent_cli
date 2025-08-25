@@ -4,6 +4,7 @@ import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
 import { ChatMessage } from "../../types.js";
 import { ToolCall } from "../../tools/types.js";
 import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
+import { ToolManager } from "../../tools/ToolManager.js";
 
 const logger = new ConsoleLogger("info");
 export class AnthropicAdaptor extends BaseLLMAdaptor {
@@ -110,10 +111,11 @@ export class AnthropicAdaptor extends BaseLLMAdaptor {
   }
 
   private convertToolsToAnthropicFormat(
-    context: ContextManager
+    context: ContextManager,
+    toolManager: ToolManager
   ): Anthropic.Tool[] {
     const tools: Anthropic.Tool[] = [];
-    for (const { identifier, tool } of context.getAllToolClients()) {
+    for (const { identifier, tool } of toolManager.getAllToolClients()) {
       tools.push({
         name: identifier,
         description: tool.description || "",
@@ -151,12 +153,12 @@ export class AnthropicAdaptor extends BaseLLMAdaptor {
     }
   }
 
-  async sendMessage(context: ContextManager): Promise<ChatMessage | undefined> {
+  async sendMessage(context: ContextManager, toolManager: ToolManager): Promise<ChatMessage | undefined> {
     try {
       const messages = this.convertMessagesToAnthropicFormat(context);
       const tools =
-        context.getToolSize() > 0
-          ? this.convertToolsToAnthropicFormat(context)
+        toolManager.getToolSize() > 0
+          ? this.convertToolsToAnthropicFormat(context, toolManager)
           : undefined;
       const systemInstructions = await this.getAllInitialContext(context);
 

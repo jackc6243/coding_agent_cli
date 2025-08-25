@@ -1,7 +1,6 @@
 import { FilePermissions } from "./FilePermissions.js";
 import * as fs from "fs";
 import * as path from "path";
-import { FileChunkMemoryStore } from "../chunking/FileChunkMemoryStore.js";
 import { ConsoleLogger } from "../logging/ConsoleLogger.js";
 
 export class ContextTreeNode {
@@ -66,15 +65,11 @@ export class DirNode extends ContextTreeNode {
 
 export class ContextTree {
   rootNode: DirNode;
-  fileMemoryStore: FileChunkMemoryStore;
-  // add cache later
 
   constructor(
-    fileMemoryStore: FileChunkMemoryStore,
     filePermissions: FilePermissions,
     initialFilePermissions?: FilePermissions
   ) {
-    this.fileMemoryStore = fileMemoryStore;
     const rootPath = filePermissions.rootPath;
     this.rootNode = new DirNode(rootPath);
     this.buildTree(
@@ -120,6 +115,7 @@ export class ContextTree {
           parentNode.addChild(fileNode);
         }
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       const logger = new ConsoleLogger("error");
       logger.log(`Error building tree for directory ${dirPath}`, "error");
@@ -264,75 +260,34 @@ export class ContextTree {
     return undefined;
   }
 
-  //   insertFileNode(filePath: string): FileNode | undefined {
-  //     const fileName = path.basename(filePath);
-  //     const fileNode = new FileNode(filePath, fileName);
-  //     const insertedNode = this.insertNode(filePath, fileNode);
-  //     return insertedNode instanceof FileNode ? insertedNode : undefined;
-  //   }
-
-  //   insertDirNode(dirPath: string): DirNode | undefined {
-  //     const dirName = path.basename(dirPath);
-  //     const dirNode = new DirNode(dirPath, dirName);
-  //     const insertedNode = this.insertNode(dirPath, dirNode);
-  //     return insertedNode instanceof DirNode ? insertedNode : undefined;
-  //   }
-
-  async getTreeString(
-    includeContent: boolean,
-    maxDepth: number = Infinity,
-    excludeOldContent?: boolean
-  ): Promise<string> {
-    return this.getNodeString(
-      this.rootNode,
-      0,
-      includeContent,
-      maxDepth,
-      excludeOldContent
-    );
+  filterByRelevantPaths(relevantPaths: string[]): void {
+    const pathSet = new Set(relevantPaths);
+    this.pruneUnrelevantNodes(this.rootNode, pathSet);
   }
 
-  private async getNodeString(
+  private pruneUnrelevantNodes(
     node: ContextTreeNode,
-    depth: number,
-    includeContent: boolean,
-    maxDepth: number,
-    excludeOldContent: boolean = true
-  ): Promise<string> {
-    if (depth > maxDepth || !node.isEnabled) return "";
+    relevantPaths: Set<string>
+  ): boolean {
+    if (node instanceof DirNode) {
+      const childrenToRemove: string[] = [];
+      let hasRelevantChildren = false;
 
-    const indent = "  ".repeat(depth);
-    const type = node instanceof FileNode ? "[F]" : "[D]";
-    let result = `${indent}${type} ${node.name}\n`;
-    if (node instanceof FileNode && includeContent) {
-      if (excludeOldContent) {
-        const outdatedMessage = `${indent}  [Note: This file content is outdated. Please use the Read tool to access the current version.]\n`;
-        try {
-          if (node.isOutdated()) {
-            result += outdatedMessage;
-          } else {
-            result += await this.fileMemoryStore.getFileString(node.fullPath);
-          }
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error) {
-          result += outdatedMessage;
+      for (const [childName, child] of node.children) {
+        if (this.pruneUnrelevantNodes(child, relevantPaths)) {
+          hasRelevantChildren = true;
+        } else {
+          childrenToRemove.push(childName);
         }
-      } else {
-        result += await this.fileMemoryStore.getFileString(node.fullPath);
       }
-    }
 
-    if (node instanceof DirNode && depth < maxDepth) {
-      for (const child of node.getAllChildren()) {
-        result += this.getNodeString(
-          child,
-          depth + 1,
-          includeContent,
-          maxDepth
-        );
+      for (const childName of childrenToRemove) {
+        node.removeChild(childName);
       }
-    }
 
-    return result;
+      return hasRelevantChildren;
+    } else {
+      return relevantPaths.has(node.fullPath);
+    }
   }
 }

@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 import { SERVICE_CONFIG } from "../../config/Constants.js";
-import { Embedding, EmbeddingService } from "./type.js";
-import { ChunkContent } from "../../chunking/types.js";
+import { Embedding, IEmbeddingService } from "./type.js";
 import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
+import { ChunkContent } from "../chunking/ChunkContent.js";
 
-export class OpenAIEmbeddingService implements EmbeddingService {
+export class OpenAIEmbeddingService implements IEmbeddingService {
   private openai: OpenAI;
   private readonly model = SERVICE_CONFIG.EMBEDDING_MODEL;
   private readonly batchSize = SERVICE_CONFIG.EMBEDDING_BATCH_SIZE;

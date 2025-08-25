@@ -1,4 +1,4 @@
-import { Chunk } from "../../chunking/Chunk.js";
+import { Chunk } from "../chunking/Chunk.js";
 import { Embedding } from "../embedding/type.js";
 
 export interface VectorStoreConfig {
@@ -21,8 +21,11 @@ export interface VectorQueryResult {
 export interface IVectorStore {
   initialize(): Promise<void>;
   storeEmbeddings(embeddings: Embedding[]): Promise<void>;
+  eraseEmbeddings(chunks: Chunk[]): Promise<void>;
+  eraseEmbedding(chunks: Chunk): Promise<void>;
   addContextId(chunks: Chunk[], contextId: number): Promise<void>;
   removeContextId(chunks: Chunk[], contextId: number): Promise<void>;
+  eraseFile(root: string): Promise<void>;
   query(
     embedding: number[],
     topK?: number,
@@ -30,6 +33,5 @@ export interface IVectorStore {
   ): Promise<VectorQueryResult[]>;
   clear(): Promise<void>;
   getStats(): Promise<VectorStoreStats>;
-  eraseFilepath(root: string): Promise<void>;
   close(): Promise<void>;
 }

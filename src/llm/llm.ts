@@ -5,14 +5,25 @@ import { BaseLLMAdaptor, LLMProvider } from "./adaptors/BaseLLMAdaptor.js";
 import { ChatMessage } from "../types.js";
 import { ConsoleLogger } from "../logging/ConsoleLogger.js";
 import { ContextManager } from "../context/ContextManager.js";
+import { ToolManager } from "../tools/ToolManager.js";
+import { FileCache } from "../services/files/FileCache.js";
+import { IRetrievalService } from "../services/rag/IRetrievalService.js";
 
 const logger = new ConsoleLogger("info");
 
 export class LLM {
   llmAdaptor: BaseLLMAdaptor;
   context: ContextManager;
+  toolManager: ToolManager;
+  fileCache: FileCache;
+  retrievalService: IRetrievalService;
 
-  constructor(provider: LLMProvider, model: string, context: ContextManager) {
+  constructor(
+    provider: LLMProvider,
+    model: string,
+    context: ContextManager,
+    retrievalService: IRetrievalService
+  ) {
     switch (provider) {
       case "openAI":
         this.llmAdaptor = new OpenAIAdaptor(model);
@@ -27,6 +38,9 @@ export class LLM {
         throw new Error(`Unsupported LLM provider: ${provider}`);
     }
     this.context = context;
+    this.toolManager = new ToolManager();
+    this.fileCache = new FileCache(context.filePermissions);
+    this.retrievalService = retrievalService;
   }
 
   addMessage(msg: ChatMessage): void {
@@ -34,7 +48,7 @@ export class LLM {
   }
 
   async sendMessage(): Promise<ChatMessage | undefined> {
-    let msg = await this.llmAdaptor.sendMessage(this.context);
+    let msg = await this.llmAdaptor.sendMessage(this.context, this.toolManager);
     if (msg) {
       this.context.addChatMessage(msg);
     } else {
@@ -57,7 +71,7 @@ export class LLM {
 
     const promises: Promise<void>[] = [];
     for (const call of toolCallsToExecute) {
-      const client = this.context.toolClients.get(call.clientName);
+      const client = this.toolManager.getToolClients().get(call.clientName);
       if (client) {
         promises.push(client.executeToolCall(call));
       } else {
@@ -80,5 +94,11 @@ export class LLM {
       return undefined;
     }
     return this.context.messageHistory[this.context.messageHistory.length - 1];
+  }
+
+  async cleanup(): Promise<void> {
+    if (this.toolManager) {
+      await this.toolManager.cleanup();
+    }
   }
 }

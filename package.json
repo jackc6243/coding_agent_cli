@@ -13,7 +13,8 @@
     "src/mcp/serverPackages/*"
   ],
   "scripts": {
-    "clear": "rm -rf ./dist && rm -rf ./test_repo && mkdir test_repo",
+    "clear": "rm -rf ./dist",
+    "clear:all" : "rm -rf ./test_repo && mkdir test_repo",
     "build": "tsc -p tsconfig.json",
     "postbuild": "chmod +x dist/main.js",
     "dev": "node --loader ts-node/esm src/main.ts",
@@ -21,7 +22,7 @@
     "format": "prettier --write .",
     "start": "node dist/main.js",
     "start:chromadb": "chroma run --host localhost --port 8000",
-    "start:new": "npm run clear && npm run build:all && npm run start",
+    "start:new": "npm run clear:all && npm run build:all && npm run start",
     "build:servers": "npm run -ws --if-present build",
     "build:all": "npm run build && npm run build:servers",
     "server:weather:build": "npm run -w @mcp-server/weather build",

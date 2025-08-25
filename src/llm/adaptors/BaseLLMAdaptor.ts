@@ -1,22 +1,27 @@
 import { ContextManager } from "../../context/ContextManager.js";
 import { ChatMessage } from "../../types.js";
+import { ToolManager } from "../../tools/ToolManager.js";
+import { ContextConverterLLM } from "../../context/ContextConverterLLM.js";
 
 export type LLMProvider = "openAI" | "anthropic" | "gemini";
 
 export abstract class BaseLLMAdaptor {
   model: string;
+  private contextConverter: ContextConverterLLM;
+  
   constructor(model: string) {
     this.model = model;
+    this.contextConverter = new ContextConverterLLM();
   }
 
   async getAllInitialContext(contextManager: ContextManager): Promise<string> {
     return `${this.getSystemContext(contextManager)}\n
-      ${this.getToolsContext(contextManager)}\n
       ${this.getCodeContext(contextManager)}`;
   }
 
   async getCodeContext(contextManager: ContextManager): Promise<string> {
-    return await contextManager.initialContextTree.getTreeString(
+    return await this.contextConverter.getTreeString(
+      contextManager.initialContextTree,
       true, // includeContent
       Infinity, // maxDepth
       true // excludeOldContent
@@ -27,13 +32,14 @@ export abstract class BaseLLMAdaptor {
     return contextManager.systemInstructions;
   }
 
-  async getToolsContext(contextManager: ContextManager): Promise<string> {
-    if (contextManager.toolClients.size === 0) {
+  async getToolsContext(contextManager: ContextManager, toolManager: ToolManager): Promise<string> {
+    const toolClients = toolManager.getToolClients();
+    if (toolClients.size === 0) {
       return "";
     }
     let description = "";
 
-    for (const [clientName, toolClient] of contextManager.toolClients) {
+    for (const [clientName, toolClient] of toolClients) {
       description += `${clientName}\n`;
       for (const [, registration] of toolClient.tools) {
         const tool = registration.tool;
@@ -79,6 +85,7 @@ export abstract class BaseLLMAdaptor {
   }
 
   abstract sendMessage(
-    context: ContextManager
+    context: ContextManager,
+    toolManager: ToolManager
   ): Promise<ChatMessage | undefined>;
 }

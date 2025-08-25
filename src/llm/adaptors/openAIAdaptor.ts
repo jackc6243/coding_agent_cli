@@ -4,6 +4,7 @@ import { ConsoleLogger } from "../../logging/ConsoleLogger.js";
 import { ToolCall } from "../../tools/types.js";
 import { ChatMessage } from "../../types.js";
 import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
+import { ToolManager } from "../../tools/ToolManager.js";
 
 const logger = new ConsoleLogger("info");
 
@@ -73,7 +74,7 @@ export class OpenAIAdaptor extends BaseLLMAdaptor {
     return messages;
   }
 
-  async sendMessage(context: ContextManager): Promise<ChatMessage | undefined> {
+  async sendMessage(context: ContextManager, toolManager: ToolManager): Promise<ChatMessage | undefined> {
     try {
       const messages = await this.convertMessagesToOpenAIFormat(context);
 
@@ -81,8 +82,8 @@ export class OpenAIAdaptor extends BaseLLMAdaptor {
         model: this.model,
         messages: messages,
         tools:
-          context.getToolSize() > 0
-            ? Array.from(context.getAllToolClients()).map(
+          toolManager.getToolSize() > 0
+            ? Array.from(toolManager.getAllToolClients()).map(
                 ({ identifier, tool }) => ({
                   type: "function" as const,
                   function: {

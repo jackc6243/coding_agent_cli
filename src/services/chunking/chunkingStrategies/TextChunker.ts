@@ -1,9 +1,10 @@
 import * as fs from "fs";
 import * as path from "path";
-import { ChunkContent, ChunkStrategist } from "../types.js";
 import { createHash } from "crypto";
+import { IChunkStrategist } from "../types.js";
+import { ChunkContent } from "../ChunkContent.js";
 
-export class TextChunker implements ChunkStrategist {
+export class TextChunker implements IChunkStrategist {
   private static readonly MAX_CHUNK_SIZE = 1000; // characters
   private static readonly OVERLAP_SIZE = 100; // characters
 

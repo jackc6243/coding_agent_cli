@@ -10,6 +10,7 @@ import { ContextManager } from "../../context/ContextManager.js";
 import { ToolCall } from "../../tools/types.js";
 import { ChatMessage } from "../../types.js";
 import { BaseLLMAdaptor } from "./BaseLLMAdaptor.js";
+import { ToolManager } from "../../tools/ToolManager.js";
 
 const logger = new ConsoleLogger("info");
 
@@ -71,11 +72,11 @@ export class GeminiAdaptor extends BaseLLMAdaptor {
     return contents;
   }
 
-  private convertToolsToGeminiFormat(context: ContextManager) {
-    if (context.getToolSize() === 0) return undefined;
+  private convertToolsToGeminiFormat(context: ContextManager, toolManager: ToolManager) {
+    if (toolManager.getToolSize() === 0) return undefined;
 
     const tools = [];
-    for (const { identifier, tool } of context.getAllToolClients()) {
+    for (const { identifier, tool } of toolManager.getAllToolClients()) {
       tools.push({
         name: identifier,
         description: tool.description || "",
@@ -90,9 +91,9 @@ export class GeminiAdaptor extends BaseLLMAdaptor {
     return tools;
   }
 
-  async sendMessage(context: ContextManager): Promise<ChatMessage | undefined> {
+  async sendMessage(context: ContextManager, toolManager: ToolManager): Promise<ChatMessage | undefined> {
     try {
-      const tools = this.convertToolsToGeminiFormat(context);
+      const tools = this.convertToolsToGeminiFormat(context, toolManager);
       const systemInstructions = await this.getAllInitialContext(context);
       const model = this.client.getGenerativeModel({
         model: this.model,

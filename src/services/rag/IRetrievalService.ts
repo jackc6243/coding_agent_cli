@@ -1,13 +1,11 @@
 import { ContextManager } from "../../context/ContextManager.js";
 import { ContextTree } from "../../context/ContextTree.js";
 
-export interface IContextRetrieverService {
+export interface IRetrievalService {
   retrieveContextTree(
     query: string,
-    ctxTree: ContextManager
+    context: ContextManager
   ): Promise<ContextTree>;
-  retrieveContextFilepaths(
-    query: string,
-    ctxTree: ContextManager
-  ): Promise<string[]>;
+
+  initiate(id?: number): Promise<void>;
 }

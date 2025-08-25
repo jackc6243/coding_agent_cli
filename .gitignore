@@ -4,10 +4,13 @@ dist
 *.log
 .DS_Store
 
-# MCP servers workspace artifacts
-src/mcp/servers/**/build
-src/mcp/servers/**/node_modules
-
 chroma*
 .claude*
 /test_repo/*
+
+# Never ignore anything in src directory (except specific exceptions below)
+!src/**
+
+# MCP servers workspace artifacts (exceptions to the src rule above)
+src/mcp/servers/**/build
+src/mcp/servers/**/node_modules
